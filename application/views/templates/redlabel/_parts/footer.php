@@ -4,7 +4,7 @@
         <div class="container-xxl container-lg">
             <div class="row g-3 justify-content-center text-center text-md-start">
                 <div class="col-md-7 col-sm-10 col-12 text-center mb-md-5 mb-3">
-                    <img src="https://houseofstitches.in/assets/gallery/logo.webp" alt="logo" class="img-fluid mb-3">
+                    <img src="<?php echo base_url(); ?>assets/gallery/logo.webp" alt="logo" class="img-fluid mb-3">
                 </div>
             </div>
             <div class="row g-lg-4 g-3 justify-content-center text-center text-md-start">
@@ -73,16 +73,16 @@
 </script>
 
 
-<script src="https://houseofstitches.in/assets/js/jquery.min.js"></script>
-<script src="https://houseofstitches.in/assets/js/bootstrap.bundle.min.js"></script>
+<script src="<?php echo base_url(); ?>assets/js/jquery.min.js"></script>
+<script src="<?php echo base_url(); ?>assets/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/Draggable.min.js"></script>
-<script src="https://houseofstitches.in/assets/js/owl.carousel.min.js"></script>
+<script src="<?php echo base_url(); ?>assets/js/owl.carousel.min.js"></script>
 <script src="https://unpkg.com/@popperjs/core@2"></script>
 <script src="https://unpkg.com/tippy.js@6"></script>
-<script src="https://houseofstitches.in/assets/js/main.js?v=<?php echo time(); ?>"></script>
-<script src="https://houseofstitches.in/assets/js/system.js"></script>
-<script src="https://houseofstitches.in/loadlanguage/all.js"></script>
+<script src="<?php echo base_url(); ?>assets/js/main.js?v=<?php echo time(); ?>"></script>
+<script src="<?php echo base_url(); ?>assets/js/system.js"></script>
+<script src="<?php echo base_url(); ?>loadlanguage/all.js"></script>
 </body>
 <style>
     .tel {

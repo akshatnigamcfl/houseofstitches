@@ -2,20 +2,20 @@
 <html>
 <head>
     <title>Barcode Scanner</title>
-    <script src="https://houseofstitches.in/assets/js/jquery.min.js"></script>
+    <script src="<?php echo base_url(); ?>assets/js/jquery.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 </head>
 <body>
     <div id="reader" style="width: 400px; height: 300px;"></div>
     <p id="result"></p>
-    <script src="https://houseofstitches.in/assets/js/jquery.min.js"></script>
-<script src="https://houseofstitches.in/assets/js/bootstrap.bundle.min.js"></script>
+    <script src="<?php echo base_url(); ?>assets/js/jquery.min.js"></script>
+<script src="<?php echo base_url(); ?>assets/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/Draggable.min.js"></script>
-<script src="https://houseofstitches.in/assets/js/owl.carousel.min.js"></script>
-<script src="https://houseofstitches.in/assets/js/main.js"></script>
-<script src="https://houseofstitches.in/assets/js/system.js"></script>
-<script src="https://houseofstitches.in/loadlanguage/all.js"></script>
+<script src="<?php echo base_url(); ?>assets/js/owl.carousel.min.js"></script>
+<script src="<?php echo base_url(); ?>assets/js/main.js"></script>
+<script src="<?php echo base_url(); ?>assets/js/system.js"></script>
+<script src="<?php echo base_url(); ?>loadlanguage/all.js"></script>
     <script>
     var variable = {
         clearShoppingCartUrl: "https://houseofstitches.in//clearShoppingCart",

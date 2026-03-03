@@ -1678,4 +1678,4 @@ $.post('<?=base_url()?>users/add_client',
 </script>
 
 <?php include("footer.php") ?>
-<script src="https://houseofstitches.in/assets/js/jquery.min.js"></script>
+<script src="<?php echo base_url(); ?>assets/js/jquery.min.js"></script>

@@ -16,18 +16,18 @@
 		content="House of Stitches supplies premium bulk kidswear for ages 6–15. Trusted wholesale clothing partner in India offering quality fabrics, trendy designs, and reliable delivery.">
 	<meta property="og:site_name" content="House of Stitches">
 	<meta property="og:url" content="https://houseofstitches.in/">
-	<meta property="og:image" content="https://houseofstitches.in/assets/img/favicon.webp">
+	<meta property="og:image" content="<?php echo base_url(); ?>assets/img/favicon.webp">
 	<link rel="canonical" href="https://houseofstitches.in/">
 	<link rel="alternate" hreflang="en" href="https://houseofstitches.in/">
 	<link rel="manifest" href="manifest.json">
-	<link rel="icon" type="image/png" sizes="32x32" href="https://houseofstitches.in/assets/gallery/favicon.webp">
-	<link rel="icon" type="image/png" sizes="16x16" href="https://houseofstitches.in/assets/gallery/favicon.webp">
-	<link rel="icon" type="image/png" sizes="48x48" href="https://houseofstitches.in/assets/gallery/favicon.webp">
-	<link rel="apple-touch-icon" sizes="180x180" href="assets/gallery/favicon.webp">
-	<link rel="stylesheet" href="https://houseofstitches.in/assets/scss/bootstrap.min.css">
-	<link rel="stylesheet" href="https://houseofstitches.in/assets/scss/style.css?v=<?php echo time(); ?>">
-	<link rel="stylesheet" href="https://houseofstitches.in/assets/css/owl.carousel.min.css">
-	<link rel="stylesheet" href="https://houseofstitches.in/assets/css/owl.theme.default.min.css">
+	<link rel="icon" type="image/png" sizes="32x32" href="<?php echo base_url(); ?>assets/gallery/favicon.webp">
+	<link rel="icon" type="image/png" sizes="16x16" href="<?php echo base_url(); ?>assets/gallery/favicon.webp">
+	<link rel="icon" type="image/png" sizes="48x48" href="<?php echo base_url(); ?>assets/gallery/favicon.webp">
+	<link rel="apple-touch-icon" sizes="180x180" href="<?php echo base_url(); ?>assets/gallery/favicon.webp">
+	<link rel="stylesheet" href="<?php echo base_url(); ?>assets/scss/bootstrap.min.css">
+	<link rel="stylesheet" href="<?php echo base_url(); ?>assets/scss/style.css?v=<?php echo time(); ?>">
+	<link rel="stylesheet" href="<?php echo base_url(); ?>assets/css/owl.carousel.min.css">
+	<link rel="stylesheet" href="<?php echo base_url(); ?>assets/css/owl.theme.default.min.css">
 	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 	<link rel="stylesheet" href="https://unpkg.com/tippy.js@6/dist/tippy.css" />
 
@@ -37,7 +37,7 @@
 			"@type": "Organization",
 			"name": "House of Stitches",
 			"url": "https://houseofstitches.in",
-			"logo": "https://houseofstitches.in/assets/img/logo.webp",
+			"logo": "<?php echo base_url(); ?>assets/img/logo.webp",
 			"sameAs": [
 				"https://www.facebook.com/houseofstitches",
 				"https://www.instagram.com/houseofstitches"

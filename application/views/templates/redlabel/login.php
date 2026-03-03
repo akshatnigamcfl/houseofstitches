@@ -130,7 +130,7 @@
         display: none;
     }
 </style>
-<script src="https://houseofstitches.in/assets/js/jquery.min.js"></script>
+<script src="<?php echo base_url(); ?>assets/js/jquery.min.js"></script>
 <input type="hidden" id="msg" placeholder="Type your message" value="Hello 👋, Welcome to spangle pvt ltd! We're excited you're here. To get started, please complete your registration here: [link]. Need assistance? Just reply to this message!">
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>

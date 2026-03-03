@@ -27,7 +27,7 @@
         <div class="alert alert-success"><?= lang('c_o_d_order_completed') ?></div>
         <div class="row justify-content-center align-items-center text-center" id="order_invoice">
             <div class="col-lg-9 col-md-11 col-12 thankscontent">
-                <div class="brand m-auto"><img src="https://houseofstitches.in/assets/gallery/logo.webp" alt="House of Stitches" class="img-fluid">
+                <div class="brand m-auto"><img src="<?php echo base_url(); ?>assets/gallery/logo.webp" alt="House of Stitches" class="img-fluid">
                 </div>
                 <h1 class="title mt-2 fs-6">Handcrafted with Love</h1>
                 <div class="checkmark text-success">✓</div>
@@ -118,7 +118,7 @@
 </div>
 
 <?php include("footer.php") ?>
-<script src="https://houseofstitches.in/assets/js/jquery.min.js"></script>
+<script src="<?php echo base_url(); ?>assets/js/jquery.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <script>

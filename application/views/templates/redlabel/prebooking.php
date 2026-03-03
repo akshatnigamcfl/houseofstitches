@@ -8,7 +8,7 @@
     <div class="container-fluid">
         <div class="row">
             <div class="col-12 px-0">
-                <img src="https://houseofstitches.in/assets/gallery/shop.webp" alt="Shop" class="w-100">
+                <img src="<?php echo base_url(); ?>assets/gallery/shop.webp" alt="Shop" class="w-100">
             </div>
         </div>
     </div>
