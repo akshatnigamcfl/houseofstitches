@@ -73,29 +73,37 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 $active_group = 'default';
 $query_builder = TRUE;
 
+// Load .env file from project root if it exists
+$_envFile = FCPATH . '.env';
+if (file_exists($_envFile)) {
+	foreach (file($_envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $_line) {
+		if ($_line[0] === '#' || strpos($_line, '=') === false) continue;
+		[$_k, $_v] = explode('=', $_line, 2);
+		putenv(trim($_k) . '=' . trim($_v));
+	}
+}
+
 $db['default'] = array(
-	'dsn'	=> '',
-	'hostname' => 'localhost',
-	'username' => 'root',
-	'password' => '1234',
-	'database' => 'u419744615_com',
-	'dbdriver' => 'mysqli',
-	'dbprefix' => '',
-	'pconnect' => FALSE,
-	'db_debug' => (ENVIRONMENT !== 'production'),
-	'cache_on' => FALSE,
-	'cachedir' => '',
-	'char_set' => 'utf8',
-	'dbcollat' => 'utf8_general_ci',
-	'swap_pre' => '',
-	'encrypt' => FALSE,
-	'compress' => FALSE,
-	'stricton' => FALSE,
-	'failover' => array(),
+	'dsn'	     => '',
+	'hostname'   => getenv('DB_HOSTNAME') ?: 'localhost',
+	'username'   => getenv('DB_USERNAME') ?: 'root',
+	'password'   => getenv('DB_PASSWORD') ?: '',
+	'database'   => getenv('DB_DATABASE') ?: '',
+	'dbdriver'   => 'mysqli',
+	'dbprefix'   => '',
+	'pconnect'   => FALSE,
+	'db_debug'   => FALSE,
+	'cache_on'   => FALSE,
+	'cachedir'   => '',
+	'char_set'   => 'utf8',
+	'dbcollat'   => 'utf8_general_ci',
+	'swap_pre'   => '',
+	'encrypt'    => FALSE,
+	'compress'   => FALSE,
+	'stricton'   => FALSE,
+	'failover'   => array(),
 	'save_queries' => TRUE
 );
-
-$db['default']['db_debug'] = FALSE;  // Add this line
 
 /*$db['default'] = array(
 	'dsn'	=> '',

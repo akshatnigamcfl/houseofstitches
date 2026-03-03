@@ -44,6 +44,30 @@
 			]
 		}
 	</script>
+	<style>
+		.header-nav-link {
+			text-decoration: none;
+			color: #333;
+			font-size: 0.9rem;
+			font-weight: 500;
+			letter-spacing: 0.05em;
+			text-transform: uppercase;
+			padding: 4px 0;
+			position: relative;
+		}
+		.header-nav-link::after {
+			content: '';
+			position: absolute;
+			bottom: 0;
+			left: 0;
+			width: 0;
+			height: 1px;
+			background: #333;
+			transition: width 0.2s;
+		}
+		.header-nav-link:hover::after { width: 100%; }
+		.header-nav-link:hover { color: #333; }
+	</style>
 </head>
 
 <body>
@@ -51,12 +75,10 @@
 		<nav class="navbar bg-white">
 			<div class="container-fluid">
 				<div class="brand-logo">
-					<?php if (!empty($this->session->userdata('logged_user'))) { ?>
-						<button class="mobilbtn" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu"
-							aria-controls="offcanvasMenu" aria-expanded="true"><img src="<?php echo base_url(); ?>assets/gallery/interface.webp"
-								alt="menu" class="img-fluid">
-						</button>
-					<?php } ?>
+					<button class="mobilbtn" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu"
+						aria-controls="offcanvasMenu" aria-expanded="true"><img src="<?php echo base_url(); ?>assets/gallery/interface.webp"
+							alt="menu" class="img-fluid">
+					</button>
 					<a class="navbar-brand" href="<?php echo base_url(); ?>">
 						<img src="<?php echo base_url(); ?>assets/gallery/logo.webp" alt="houseofstitches"
 							class="img-fluid d-none d-sm-block">
@@ -64,6 +86,11 @@
 							class="img-fluid d-block d-sm-none">
 					</a>
 				</div>
+				<ul class="list-unstyled d-none d-lg-flex align-items-center mb-0 gap-3 header-nav">
+					<li><a class="header-nav-link" href="<?php echo base_url('home/shop'); ?>">Shop</a></li>
+					<li><a class="header-nav-link" href="<?php echo base_url('offer'); ?>">Offers</a></li>
+					<li><a class="header-nav-link" href="<?php echo base_url('wishlist'); ?>">wishlist</a></li>
+				</ul>
 				<ul class="list-unstyled d-flex justify-content-between align-items-center mb-0 gap-4 me-md-3 me-1">
 					<?php if (empty($this->session->userdata('logged_user'))) { ?>
 						<li class="nav-icon"><a href="<?php echo base_url('register'); ?>"><i class="bi bi-person"></i></a></li>
@@ -164,8 +191,8 @@
 								<summary><a href="<?php echo base_url('home/account'); ?>">MY ACCOUNT</a><span class="chev">›</span></summary>
 								<div class="nav-items">
 									<a class="nav-links" href="<?php echo base_url('home/account'); ?>">My Orders</a>
-									<a class="nav-links" href="/home/wishlist">Wishlist</a>
-									<a class="nav-links" href="/account/addresses">Addresses</a>
+									<a class="nav-links" href="<?php echo base_url('wishlist'); ?>">Wishlist</a>
+									<a class="nav-links" href="<?php echo base_url('myaccount'); ?>">Addresses</a>
 									<a class="nav-links" href="<?= base_url('home/account'); ?>">Profile</a>
 									<a class="nav-links" href="<?php echo base_url('logout'); ?>">Logout</a>
 								</div>
@@ -182,20 +209,19 @@
 						<details>
 							<summary>HELP & SUPPORT <span class="chev">›</span></summary>
 							<div class="nav-items">
-								<a class="nav-links" href="terms-conditions.php">Terms & Conditions</a>
-								<a class="nav-links" href="privacy-policy.php">Privacy Policy</a>
-								<a class="nav-links" href="track-order.php">Track Order</a>
-								<a class="nav-links" href="returns-exchange.php">Returns & Exchanges</a>
-								<a class="nav-links" href="shipping.php">Shipping Information</a>
-								<a class="nav-links" href="payment-method.php">Payment Methods</a>
-								<a class="nav-links" href="gift-cards.php">Gift Cards</a>
+								<a class="nav-links" href="<?php echo base_url('page/terms-conditions'); ?>">Terms & Conditions</a>
+								<a class="nav-links" href="<?php echo base_url('page/privacy-policy'); ?>">Privacy Policy</a>
+								<a class="nav-links" href="<?php echo base_url('page/track-order'); ?>">Track Order</a>
+								<a class="nav-links" href="<?php echo base_url('page/returns-exchange'); ?>">Returns & Exchanges</a>
+								<a class="nav-links" href="<?php echo base_url('page/shipping'); ?>">Shipping Information</a>
+								<a class="nav-links" href="<?php echo base_url('page/payment-method'); ?>">Payment Methods</a>
+								<a class="nav-links" href="<?php echo base_url('page/gift-cards'); ?>">Gift Cards</a>
 							</div>
 						</details>
 					</div>
 					<div class="bottom-cta">
-						<a class="btn btn-success w-100 rounded-pill text-center my-2" href="/checkout">Proceed to
-							Checkout</a>
-						<a class="btn_button w-100 rounded-pill text-center py-2 d-block" href="/cart">View Cart</a>
+						<a class="btn btn-success w-100 rounded-pill text-center my-2" href="<?php echo base_url('checkout'); ?>">Proceed to Checkout</a>
+						<a class="btn_button w-100 rounded-pill text-center py-2 d-block" href="<?php echo base_url('shopping-cart'); ?>">View Cart</a>
 					</div>
 				</ul>
 			</div>

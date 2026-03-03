@@ -3,3 +3,5 @@
 /zip files
 /attachments
 /github
+/application/config/database.php
+/.env

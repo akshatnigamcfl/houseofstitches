@@ -81,6 +81,109 @@
   </div>
 </div>
 
+<div class="our_catalogue py-5">
+  <div class="container-fluid px-lg-5 px-3">
+
+    <?php if (!empty($all_categories)): ?>
+    <div class="row mb-4">
+      <div class="col-12 text-center">
+        <h2 class="h2_heading mb-3">Shop by Category</h2>
+        <div class="d-flex flex-wrap justify-content-center gap-2">
+          <a href="<?php echo base_url('home/shop'); ?>" class="btn rounded-pill catalogue-chip active-chip">All</a>
+          <?php foreach ($all_categories as $cat):
+                if ($cat['sub_for'] != 0) continue; ?>
+            <a href="<?php echo base_url('home/shop?category=' . $cat['id']); ?>" class="btn rounded-pill catalogue-chip">
+              <?php echo htmlspecialchars($cat['name']); ?>
+            </a>
+          <?php endforeach; ?>
+        </div>
+      </div>
+    </div>
+    <?php endif; ?>
+
+    <?php if (!empty($bestSellers)): ?>
+    <h2 class="h2_heading text-center mb-4">Best Sellers</h2>
+    <div class="row g-3">
+      <?php foreach ($bestSellers as $product): ?>
+      <div class="col-lg-3 col-md-4 col-6">
+        <div class="tb-product-item-inner">
+          <div class="card product-card border-0">
+            <a href="<?php echo base_url($product['url'] . '_' . $product['id']); ?>">
+              <div class="product-img-wrapper overflow-hidden">
+                <?php if (!empty($product['image'])): ?>
+                  <img src="<?php echo base_url('attachments/shop_images/' . $product['image']); ?>"
+                       class="w-100 img_products" alt="<?php echo htmlspecialchars($product['title']); ?>" loading="lazy"
+                       onerror="this.onerror=null;this.src='<?php echo base_url('attachments/shop_images/spark_logo-06.jpg'); ?>';">
+                <?php else: ?>
+                  <img src="<?php echo base_url('attachments/shop_images/spark_logo-06.jpg'); ?>"
+                       class="w-100 img_products" alt="product" loading="lazy">
+                <?php endif; ?>
+              </div>
+            </a>
+          </div>
+          <ul class="list-unstyled tb-content mt-2">
+            <li class="product-title">
+              <a href="<?php echo base_url($product['url'] . '_' . $product['id']); ?>">
+                <?php echo htmlspecialchars($product['title']); ?>
+              </a>
+            </li>
+            <?php if (!empty($product['price'])): ?>
+            <li class="product-price"><?php echo CURRENCY . ' ' . number_format($product['price'], 2); ?></li>
+            <?php endif; ?>
+          </ul>
+        </div>
+      </div>
+      <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
+
+    <?php if (!empty($newProducts)): ?>
+    <h2 class="h2_heading text-center mt-5 mb-4">New Arrivals</h2>
+    <div class="row g-3">
+      <?php foreach ($newProducts as $product): ?>
+      <div class="col-lg-3 col-md-4 col-6">
+        <div class="tb-product-item-inner">
+          <div class="card product-card border-0">
+            <a href="<?php echo base_url($product['url'] . '_' . $product['id']); ?>">
+              <div class="product-img-wrapper overflow-hidden">
+                <?php if (!empty($product['image'])): ?>
+                  <img src="<?php echo base_url('attachments/shop_images/' . $product['image']); ?>"
+                       class="w-100 img_products" alt="<?php echo htmlspecialchars($product['title']); ?>" loading="lazy"
+                       onerror="this.onerror=null;this.src='<?php echo base_url('attachments/shop_images/spark_logo-06.jpg'); ?>';">
+                <?php else: ?>
+                  <img src="<?php echo base_url('attachments/shop_images/spark_logo-06.jpg'); ?>"
+                       class="w-100 img_products" alt="product" loading="lazy">
+                <?php endif; ?>
+              </div>
+            </a>
+          </div>
+          <ul class="list-unstyled tb-content mt-2">
+            <li class="product-title">
+              <a href="<?php echo base_url($product['url'] . '_' . $product['id']); ?>">
+                <?php echo htmlspecialchars($product['title']); ?>
+              </a>
+            </li>
+            <?php if (!empty($product['price'])): ?>
+            <li class="product-price"><?php echo CURRENCY . ' ' . number_format($product['price'], 2); ?></li>
+            <?php endif; ?>
+          </ul>
+        </div>
+      </div>
+      <?php endforeach; ?>
+    </div>
+    <div class="text-center mt-4">
+      <a href="<?php echo base_url('home/shop'); ?>" class="btn btn-outline-dark rounded-pill px-5">View All Products</a>
+    </div>
+    <?php endif; ?>
+
+  </div>
+</div>
+
+<style>
+.catalogue-chip { border: 1px solid #ccc; color: #333; background: #fff; font-size: 0.85rem; padding: 6px 16px; transition: all 0.2s; }
+.catalogue-chip:hover, .active-chip { background: #333; color: #fff; border-color: #333; }
+</style>
+
 <div class="our_instagram">
   <div class="container-fluid">
     <div class="row g-md-3 g-2 justify-content-center align-items-center text-center">
