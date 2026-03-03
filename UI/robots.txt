@@ -1,0 +1,11 @@
+# Allow all search engines to crawl the site
+User-agent: *
+Disallow: /wp-admin/
+Disallow: /cart/
+Disallow: /checkout/
+Disallow: /my-account/
+Disallow: /search/
+Allow: /
+
+# Sitemap location
+Sitemap: https://houseofstitches.in/sitemap.xml
