@@ -184,15 +184,9 @@ foreach ($this->input->cookie() as $name => $value) {
 
         
         $this->email->message($message);
-        
-        // SEND EMAIL ✅
-        if ($this->email->send()) {
-            echo "<h2>✅ SMTP Email Sent Successfully!</h2>";
-            echo "<p>To: <strong>" . $to_email . "</strong></p>";
-            echo "<p>Check your inbox/spam folder!</p>";
-        } else {
-            echo "<h2>❌ SMTP Email Failed!</h2>";
-            echo "<pre>" . $this->email->print_debugger(['headers' => FALSE]) . "</pre>";
+
+        if (!$this->email->send()) {
+            log_message('error', 'Registration email failed to: ' . $to_email . ' — ' . $this->email->print_debugger(['headers' => FALSE]));
         }
     }
 
