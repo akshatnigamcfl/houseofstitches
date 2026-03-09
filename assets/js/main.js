@@ -175,6 +175,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // video effect js
 (function () {
   const stage = document.querySelector(".video-stage");
+  if (!stage) return;
   const root = document.documentElement;
   window.addEventListener("scroll", () => {
     const rect = stage.getBoundingClientRect();
@@ -215,6 +216,7 @@ window.addEventListener("load", function () {
 // modal popup js
 window.addEventListener("load", function () {
   const modalElement = document.getElementById('roleModal');
+  if (!modalElement) return;
   const roleModal = new bootstrap.Modal(modalElement, {
     backdrop: 'static',
     keyboard: false
@@ -252,6 +254,7 @@ window.addEventListener("load", function () {
   $(document).ready(function () {
     "use strict";
     var progressPath = document.querySelector('.progress-wrap path');
+    if (!progressPath) return;
     var pathLength = progressPath.getTotalLength();
     progressPath.style.transition = progressPath.style.WebkitTransition = 'none';
     progressPath.style.strokeDasharray = pathLength + ' ' + pathLength;
@@ -386,6 +389,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 // countdown timer js
 (function () {
+  if (!document.getElementById("days")) return;
   const offerDuration = 3 * 60 * 60 * 1000; // 3 hours
   const offerEndTime = new Date().getTime() + offerDuration;
   const countdownTimer = setInterval(() => {

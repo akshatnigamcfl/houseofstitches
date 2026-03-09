@@ -28,6 +28,8 @@ class Users extends MY_Controller
                 $_SESSION['logged_user'] = $result; //id of user
                // redirect(LANG_URL . '/checkout');
                redirect('home/shop');
+            } elseif ($this->Public_model->checkUserPendingApproval($_POST)) {
+                $this->session->set_flashdata('userError', 'Your account is pending admin approval. You will receive an email once approved.');
             } else {
                 $this->session->set_flashdata('userError', lang('wrong_user'));
             }

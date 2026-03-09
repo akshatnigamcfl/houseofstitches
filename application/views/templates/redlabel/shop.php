@@ -603,6 +603,7 @@
                 <div class="shop-tab">
                   <div class="row g-2" id="catalog" aria-live="polite">
                     <?php
+                    $all_variations = isset($variations) ? $variations : [];
                     if (isset($products)) {
                       foreach ($products as $val) {  ?>
                         <div class="col-lg-3 col-md-4 col-6">
@@ -612,7 +613,8 @@
                               data-price="<?php echo $val['wsp']; ?>" data-mrp="<?php echo $val['msp']; ?>"
                               data-desc="<?php echo $val['description']; ?>"
                               data-fabric="<?php echo $val['fabric']; ?>"
-                              data-id="<?php echo $val['id']; ?>" data-images='<?php echo base_url(); ?>attachments/shop_images/<?php echo $val['image']; ?>' data-colors='<?php echo $val['color']; ?>' data-sizes='<?php echo $val['size_range']; ?>'>
+                              data-id="<?php echo $val['id']; ?>" data-images='<?php echo base_url(); ?>attachments/shop_images/<?php echo $val['image']; ?>' data-colors='<?php echo htmlspecialchars($val['color'], ENT_QUOTES); ?>' data-sizes='<?php echo htmlspecialchars($val['size_range'], ENT_QUOTES); ?>'
+                              data-variations='<?php echo htmlspecialchars(json_encode(!empty($all_variations[$val['id']]) ? $all_variations[$val['id']] : []), ENT_QUOTES); ?>'>
                               <?php
                               $folderPath = $_SERVER['DOCUMENT_ROOT'] . '/attachments/shop_images/';
                               $imageName = $val['image'];
@@ -638,8 +640,32 @@
                             <ul class="list-unstyled tb-content">
                               <li><a href="#"><?php echo $val['title']; ?></a></li>
                               <li><a href="#"><?php echo $val['description']; ?></a></li>
-                              <li class="small"><a href="#" class="text-muted"><?php echo $val['size_range']; ?></a></li>
-                              <li><?php echo $val['color']; ?></li>
+                              <li class="small var-chips">
+                                <?php if (!empty($all_variations[$val['id']])): ?>
+                                  <?php foreach ($all_variations[$val['id']] as $v): if (trim($v['color'])): ?>
+                                    <span class="var-tag-color"><?= htmlspecialchars(trim($v['color'])) ?></span>
+                                  <?php endif; endforeach; ?>
+                                <?php else: ?>
+                                  <a href="#" class="text-muted"><?= htmlspecialchars($val['color']) ?></a>
+                                <?php endif; ?>
+                              </li>
+                              <li class="var-chips">
+                                <?php if (!empty($all_variations[$val['id']])): ?>
+                                  <?php
+                                    $uniq_sizes = [];
+                                    foreach ($all_variations[$val['id']] as $v) {
+                                      foreach (array_map('trim', explode(',', $v['sizes'])) as $s) {
+                                        if ($s !== '') $uniq_sizes[$s] = $s;
+                                      }
+                                    }
+                                  ?>
+                                  <?php foreach ($uniq_sizes as $s): ?>
+                                    <span class="var-tag-size"><?= htmlspecialchars($s) ?></span>
+                                  <?php endforeach; ?>
+                                <?php else: ?>
+                                  <a href="#" class="text-muted"><?= htmlspecialchars($val['size_range']) ?></a>
+                                <?php endif; ?>
+                              </li>
                               <li>
                                 <ol class="price-list">
                                   <li>WSP <?php echo $val['wsp']; ?> /-</li>
@@ -1041,6 +1067,57 @@
   </div>
 </div>
 
+<style>
+  .color-text-chip {
+    display: inline-block;
+    padding: 3px 10px;
+    border: 1.5px solid #ccc;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    margin: 2px;
+    background: #fff;
+    white-space: nowrap;
+  }
+  .color-text-chip.selected, .color-text-chip:hover {
+    border-color: #111;
+    background: #111;
+    color: #fff;
+  }
+  .size-chip-btn {
+    display: inline-block;
+    padding: 5px 12px;
+    border: 1.5px solid #ccc;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    margin: 2px;
+    background: #fff;
+  }
+  .size-chip-btn.selected, .size-chip-btn:hover {
+    border-color: #111;
+    background: #111;
+    color: #fff;
+  }
+  .var-tag-color, .var-tag-size {
+    display: inline-block;
+    font-size: 10px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin: 1px;
+    border: 1px solid #ddd;
+    background: #f8f8f8;
+    color: #444;
+  }
+  .var-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+</style>
 <script>
   const modal = document.getElementById("productModal");
   const mainImage = document.getElementById("mainImage");
@@ -1051,133 +1128,134 @@
   const addToCart = document.getElementById("addToCart");
   const colorName = document.getElementById("colorName");
 
-  let images = [],
-    selectedColor = "",
+  let selectedColor = "", selectedSize = "", currentProductId = 0, currentProductWsp = 0, currentProductMrp = 0;
+
+  modal.addEventListener("show.bs.modal", function(e) {
+    var c = e.relatedTarget;
+    if (!c) return;
+
+    var setEl = function(id, val) {
+      var el = document.getElementById(id);
+      if (el) el.innerText = val || "";
+    };
+    setEl("modalTitle",        c.dataset.title);
+    setEl("brandName",         c.dataset.brand);
+    setEl("skuId",             c.dataset.sku);
+    setEl("fabric",            c.dataset.fabric);
+    setEl("fabricCategory",    c.dataset.fabricCategory);
+    setEl("fabricType",        c.dataset.fabricType);
+    setEl("category",          c.dataset.category);
+    setEl("subcategory",       c.dataset.subcategory);
+    setEl("composition",       c.dataset.composition);
+    setEl("modalMrp",          c.dataset.mrp   ? "₹" + c.dataset.mrp   : "");
+    setEl("modalSale",         c.dataset.price ? "₹" + c.dataset.price : "");
+    setEl("productDescription", c.dataset.desc);
+
+    currentProductId  = c.dataset.id    || 0;
+    currentProductWsp = c.dataset.price  || 0;
+    currentProductMrp = c.dataset.mrp    || 0;
+    mainImage.src = c.dataset.images || "";
+    galleryThumbs.innerHTML = "";
+    selectedColor = "";
     selectedSize = "";
+    if (sizeError) sizeError.style.display = "none";
 
-  const betweenSizes = {
-    "2-5 Years": ["2-3", "3-4", "4-5"],
-    "6-16 Years": ["6-8", "8-12", "12-16"],
-    "0-24 Months": ["0-6m", "6-12m", "12-24m"]
-  };
+    var variations = [];
+    try { variations = JSON.parse(c.dataset.variations || "[]"); } catch(ex) {}
 
-  modal.addEventListener("show.bs.modal", e => {
-    const c = e.relatedTarget;
-
-    modalTitle.innerText = c.dataset.name;
-    brandName.innerText = c.dataset.brand;
-    skuId.innerText = c.dataset.sku;
-    category.innerText = c.dataset.category;
-    subcategory.innerText = c.dataset.subcategory;
-    fabricCategory.innerText = c.dataset.fabricCategory;
-    fabricType.innerText = c.dataset.fabricType;
-    fabric.innerText = c.dataset.fabric;
-    composition.innerText = c.dataset.composition;
-
-    modalMrp.innerText = "₹" + c.dataset.price;
-    modalSale.innerText = "₹" + c.dataset.sale;
-    productDescription.innerText = c.dataset.description;
-
-    images = JSON.parse(c.dataset.images);
-    selectedColor = images[0].color;
-    selectedSize = "";
-    sizeError.style.display = "none";
-
-    renderColors();
-    loadColor(selectedColor);
-    renderSizes();
+    renderVariations(variations, c.dataset.colors || "", c.dataset.sizes || "");
   });
 
-  function renderColors() {
+  function renderVariations(variations, fallbackColors, fallbackSizes) {
     colorThumbs.innerHTML = "";
-
-    images.forEach(obj => {
-      const d = document.createElement("div");
-      d.className = "color-thumb" + (obj.color === selectedColor ? " selected" : "");
-      d.innerHTML = `<img src="${obj.imgs[0]}" width="60">`;
-
-      d.onmouseenter = () => colorName.innerText = obj.color;
-      d.onmouseleave = () => colorName.innerText = selectedColor;
-
-      d.onclick = () => {
-        selectedColor = obj.color;
-        selectedSize = "";
-        sizeError.style.display = "none";
-        renderColors();
-        loadColor(selectedColor);
-      };
-
-      colorThumbs.appendChild(d);
-    });
-
-    colorName.innerText = selectedColor;
-  }
-
-  function loadColor(color) {
-    const obj = images.find(i => i.color === color);
-    const gallery = obj.imgs;
-
-    mainImage.src = gallery[0];
-    galleryThumbs.innerHTML = "";
-
-    gallery.forEach((img, i) => {
-      const t = document.createElement("img");
-      t.src = img;
-      t.className = "gallery-thumb" + (i === 0 ? " active" : "");
-
-      t.onclick = () => {
-        mainImage.src = img;
-        document.querySelectorAll(".gallery-thumb").forEach(g => g.classList.remove("active"));
-        t.classList.add("active");
-      };
-
-      galleryThumbs.appendChild(t);
-    });
-
-    colorName.innerText = selectedColor;
-  }
-
-  function renderSizes() {
     sizeContainer.innerHTML = "";
-    Object.keys(betweenSizes).forEach(size => {
-      const wrap = document.createElement("div");
-      wrap.style.display = "flex";
-      wrap.style.flexDirection = "column";
 
-      const box = document.createElement("div");
-      box.className = "size-box";
-      box.innerText = size;
-
-      const sub = document.createElement("div");
-      sub.className = "size-subinfo";
-      betweenSizes[size].forEach(s => {
-        const sp = document.createElement("span");
-        sp.innerText = s;
-        sub.appendChild(sp);
+    if (variations.length > 0) {
+      variations.forEach(function(v, idx) {
+        var chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "color-text-chip" + (idx === 0 ? " selected" : "");
+        chip.innerText = v.color || "";
+        (function(variation, btn) {
+          btn.onclick = function() {
+            document.querySelectorAll(".color-text-chip").forEach(function(c) { c.classList.remove("selected"); });
+            btn.classList.add("selected");
+            colorName.innerText = variation.color;
+            selectedColor = variation.color;
+            selectedSize = "";
+            renderSizesFromStr(variation.sizes || "");
+          };
+        })(v, chip);
+        colorThumbs.appendChild(chip);
+        if (idx === 0) {
+          colorName.innerText = v.color;
+          selectedColor = v.color;
+          renderSizesFromStr(v.sizes || "");
+        }
       });
+    } else {
+      colorName.innerText = fallbackColors || "";
+      if (fallbackColors) {
+        var span = document.createElement("span");
+        span.className = "color-text-chip selected";
+        span.innerText = fallbackColors;
+        colorThumbs.appendChild(span);
+        selectedColor = fallbackColors;
+      }
+      if (fallbackSizes) renderSizesFromStr(fallbackSizes);
+    }
+  }
 
-      box.onclick = () => {
-        document.querySelectorAll(".size-box").forEach(b => b.classList.remove("selected"));
-        document.querySelectorAll(".size-subinfo").forEach(d => d.style.display = "none");
-        box.classList.add("selected");
-        sub.style.display = "block";
-        selectedSize = size;
-        sizeError.style.display = "none";
+  function renderSizesFromStr(sizesStr) {
+    sizeContainer.innerHTML = "";
+    if (!sizesStr) return;
+    var sizes = sizesStr.split(",").map(function(s) { return s.trim(); }).filter(Boolean);
+    sizes.forEach(function(s) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "size-chip-btn";
+      btn.innerText = s;
+      btn.onclick = function() {
+        document.querySelectorAll(".size-chip-btn").forEach(function(b) { b.classList.remove("selected"); });
+        btn.classList.add("selected");
+        selectedSize = s;
+        if (sizeError) sizeError.style.display = "none";
       };
-
-      wrap.appendChild(box);
-      wrap.appendChild(sub);
-      sizeContainer.appendChild(wrap);
+      sizeContainer.appendChild(btn);
     });
   }
 
-  addToCart.onclick = () => {
-    if (!selectedSize) {
-      sizeError.style.display = "block";
-      return;
-    }
-    alert(`Added to cart\nColor: ${selectedColor}\nSize: ${selectedSize}`);
-  };
+  // stub to satisfy old references
+  function renderSizes() {}
+
+  if (addToCart) {
+    addToCart.onclick = function() {
+      if (!selectedSize) {
+        if (sizeError) sizeError.style.display = "block";
+        return;
+      }
+      if (typeof variable !== "undefined" && variable.manageShoppingCartUrl) {
+        jQuery.ajax({
+          type: "POST",
+          url: variable.manageShoppingCartUrl,
+          dataType: "text",
+          data: { article_id: currentProductId, action: "add", wsp: currentProductWsp, mrp: currentProductMrp }
+        }).done(function(data) {
+          try { var r = JSON.parse(data); if (r && r.login_required) { window.location.href = '<?= base_url("login") ?>'; return; } } catch(e) {}
+          document.dispatchEvent(new Event('cartItemAdded'));
+          var closeBtn = document.querySelector("#productModal .btn-close");
+          if (closeBtn) closeBtn.click();
+          if (typeof ShowNotificator === "function") {
+            ShowNotificator("alert-info", typeof action_success_msg !== "undefined" ? action_success_msg : "Added to cart!");
+          }
+        }).fail(function() {
+          if (typeof ShowNotificator === "function") ShowNotificator("alert-danger", "Error adding to cart.");
+        });
+      } else {
+        alert("Added to cart\nColor: " + selectedColor + "\nSize: " + selectedSize);
+      }
+    };
+  }
 </script>
 
 <?php
@@ -1220,7 +1298,7 @@
         mrp: mrp
       }
     }).done(function(data) {
-
+      try { var r = JSON.parse(data); if (r && r.login_required) { window.location.href = '<?= base_url("login") ?>'; return; } } catch(e) {}
 
       if (reload == true) {
         location.reload(false);
@@ -1230,6 +1308,7 @@
         return;
       }
 
+      document.dispatchEvent(new Event('cartItemAdded'));
       ShowNotificator('alert-info', action_success_msg);
     }).fail(function(err) {
       console.error('AJAX Error:', err);

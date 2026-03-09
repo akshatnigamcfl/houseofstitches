@@ -36,6 +36,10 @@ class Orders extends ADMIN_Controller
         $rowscount = $this->Orders_model->ordersCount();
         $data['orders'] = $this->Orders_model->orders($this->num_rows, $page, $order_by);
         $data['links_pagination'] = pagination('admin/orders', $rowscount, $this->num_rows, 3);
+        $data['count_all']       = $rowscount;
+        $data['count_pending']   = $this->Orders_model->ordersCount(false, 0);
+        $data['count_processed'] = $this->Orders_model->ordersCount(false, 1);
+        $data['count_rejected']  = $this->Orders_model->ordersCount(false, 2);
         if (isset($_POST['paypal_sandbox'])) {
             $this->Home_admin_model->setValueStore('paypal_sandbox', $_POST['paypal_sandbox']);
             if ($_POST['paypal_sandbox'] == 1) {

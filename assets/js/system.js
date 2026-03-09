@@ -17,9 +17,9 @@ $('a.add-to-cart').click(function () {
 });
 
 // DatePicker
-$('.input-group.date').datepicker({
-    format: "dd/mm/yyyy"
-});
+if (typeof $.fn.datepicker === 'function' && $('.input-group.date').length) {
+    $('.input-group.date').datepicker({ format: "dd/mm/yyyy" });
+}
 
 // Filters Technique
 $('.go-category').click(function () {

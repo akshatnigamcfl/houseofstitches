@@ -17,39 +17,31 @@ function get_cart_count_fast() {
                   ->count_all_results('cart_items');
 }
 
- function cart_item(){
-     // In controller, model, or helper
-   $CI =& get_instance(); 
-$CI->db->select('
-    ci.id as id,
-    ci.product_id,
-    ci.quantity,
-    ci.price as cart_price,
-    ci.created_at,
-    ci.set_quantity,
-    p.id as product_id,
-    p.title,
-    p.description,
-    p.brand,
-    p.price ,
-    p.color ,
-    p.size_range ,
-    p.set_pcs_qty ,
-    p.msp as mrp,
-    p.wsp ,
-    p1.image,
-    p1.shop_categorie,
-    (p.price * ci.quantity) as subtotal
-');
+function cart_item() {
+    $CI =& get_instance();
+    $CI->db->select('
+        ci.id as id,
+        ci.product_id,
+        ci.quantity,
+        ci.set_quantity,
+        p1.image,
+        pt.title,
+        pt.brand,
+        pt.color,
+        pt.size_range,
+        pt.msp as mrp,
+        pt.wsp
+    ');
 
-$CI->db->from('cart_items ci');
-$CI->db->join('products_translations p', 'p.id = ci.product_id', 'left');
-$CI->db->join('products p1', 'p.for_id = p1.id', 'left');
-$CI->db->where('ci.session_id', user_id());
-$CI->db->where('ci.set_quantity >', 0);           // quantity > 0
-$CI->db->order_by('ci.created_at', 'DESC');
+    $CI->db->from('cart_items ci');
+    $CI->db->join('products p1', 'p1.id = ci.product_id', 'left');
+    $CI->db->join('products_translations pt', 'pt.for_id = ci.product_id AND pt.abbr = \'' . MY_LANGUAGE_ABBR . '\'', 'left');
+    $CI->db->where('ci.session_id', user_id());
+    $CI->db->where('ci.set_quantity >', 0);
+    $CI->db->order_by('ci.id', 'DESC');
 
-$query = $CI->db->get(); //echo $CI->db->last_query(); die;
+    $query = $CI->db->get();
+
     // ✅ CRITICAL: Check if query succeeded
     if ($query === FALSE) {
         log_message('error', 'Cart query failed: ' . $CI->db->last_query());
@@ -62,9 +54,17 @@ $query = $CI->db->get(); //echo $CI->db->last_query(); die;
     
     
  }
+
+
+function is_logged_in() {
+    $CI =& get_instance();
+    $logged_user = $CI->session->userdata('logged_user');
+    return !empty($logged_user);
+}
+
 function user_id()
-{   
-   $CI =& get_instance(); 
+{
+   $CI =& get_instance();
    $info = $CI->session->all_userdata(); 
    $id = $info['logged_user']['id'];
     if(!empty($id)){
@@ -128,13 +128,12 @@ function get_loggedin_user_agent() {
     return $user ? $user->name : null;
 }
 function get_product_details($product_id)
-{   
-   $CI =& get_instance(); 
-   $info = $CI->session->all_userdata(); 
-   
-   $id = $info['logged_user']['id'];
-   $product = $CI->db->query('SELECT p.*, pt.* FROM products AS p LEFT JOIN products_translations AS pt ON pt.for_id = p.id where p.id = '.$product_id.'')->row();
-    return $product;
+{
+   if (empty($product_id)) return null;
+   $CI =& get_instance();
+   $query = $CI->db->query('SELECT p.*, pt.* FROM products AS p LEFT JOIN products_translations AS pt ON pt.for_id = p.id where p.id = ' . (int)$product_id);
+   if ($query === FALSE) return null;
+   return $query->num_rows() > 0 ? $query->row() : null;
 }
 function get_current_user_info()
 {   

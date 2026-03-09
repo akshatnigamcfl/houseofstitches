@@ -169,6 +169,44 @@ class Products_model extends CI_Model
         } else {
             $this->db->trans_commit();
         }
+        return $id;
+    }
+
+    public function saveVariations($product_id, $colors, $sizes)
+    {
+        $this->db->query("CREATE TABLE IF NOT EXISTS `product_variations` (
+            `id` int NOT NULL AUTO_INCREMENT,
+            `product_id` int NOT NULL,
+            `color` varchar(100) DEFAULT NULL,
+            `sizes` varchar(500) DEFAULT NULL,
+            PRIMARY KEY (`id`),
+            KEY `product_id` (`product_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3");
+
+        $this->db->where('product_id', $product_id)->delete('product_variations');
+
+        foreach ($colors as $i => $color) {
+            $color = trim($color);
+            $size  = isset($sizes[$i]) ? trim($sizes[$i]) : '';
+            if ($color === '' && $size === '') {
+                continue;
+            }
+            $this->db->insert('product_variations', [
+                'product_id' => $product_id,
+                'color'      => $color,
+                'sizes'      => $size,
+            ]);
+        }
+    }
+
+    public function getVariations($product_id)
+    {
+        if (!$this->db->table_exists('product_variations')) {
+            return [];
+        }
+        return $this->db->where('product_id', $product_id)
+                        ->get('product_variations')
+                        ->result_array();
     }
 
     private function setProductTranslation($post, $id, $is_update)

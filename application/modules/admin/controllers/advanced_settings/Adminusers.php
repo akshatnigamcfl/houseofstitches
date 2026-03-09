@@ -146,17 +146,32 @@ class Adminusers extends ADMIN_Controller
     }
     
 public function approve() {
-     $id = $this->input->post('id');
-     $role = $this->input->post('role'); 
-     $pcent = $this->input->post('pcent'); 
-     $remark = $this->input->post('rmark'); 
-     $value = $this->input->post('agent'); 
-    $this->db->where('id', $id)->update('users_public', ['status' => '1', 'type' => $role, 'percent' => $pcent, 'remark' => $remark, 'agents'=> $value]);
-   if ($this->db->affected_rows() > 0) {
-                echo json_encode(['success' => true, 'message' => 'Approved successfully']);
-            } else {
-                echo json_encode(['success' => false, 'message' => 'No rows updated']);
-            }
+    $id    = $this->input->post('id');
+    $role  = $this->input->post('role');
+    $pcent = $this->input->post('pcent');
+    $rmark = $this->input->post('rmark');
+    $agent = $this->input->post('agent');
+
+    // Add missing columns on first run
+    if (!$this->db->field_exists('percent', 'users_public')) {
+        $this->db->query("ALTER TABLE users_public ADD COLUMN `percent` varchar(20) DEFAULT NULL");
+    }
+    if (!$this->db->field_exists('remark', 'users_public')) {
+        $this->db->query("ALTER TABLE users_public ADD COLUMN `remark` varchar(255) DEFAULT NULL");
+    }
+
+    $this->db->where('id', $id)->update('users_public', [
+        'status'  => '1',
+        'type'    => $role,
+        'percent' => $pcent,
+        'remark'  => $rmark,
+        'agents'  => $agent,
+    ]);
+    if ($this->db->affected_rows() > 0) {
+        echo json_encode(['success' => true, 'message' => 'Approved successfully']);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'No rows updated']);
+    }
 }
 
 public function reject() {

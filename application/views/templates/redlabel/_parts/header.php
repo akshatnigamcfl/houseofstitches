@@ -89,7 +89,13 @@
 				<ul class="list-unstyled d-none d-lg-flex align-items-center mb-0 gap-3 header-nav">
 					<li><a class="header-nav-link" href="<?php echo base_url('home/shop'); ?>">Shop</a></li>
 					<li><a class="header-nav-link" href="<?php echo base_url('offer'); ?>">Offers</a></li>
-					<li><a class="header-nav-link" href="<?php echo base_url('wishlist'); ?>">wishlist</a></li>
+					<li><a class="header-nav-link" href="<?php echo base_url('wishlist'); ?>">Wishlist</a></li>
+					<?php if (!empty($this->session->userdata('logged_user'))) { ?>
+						<li><a class="header-nav-link" href="<?php echo base_url('home/account'); ?>">Account</a></li>
+						<li><a class="header-nav-link" href="<?php echo base_url('shopping-cart'); ?>">Cart</a></li>
+					<?php } else { ?>
+						<li><a class="header-nav-link" href="<?php echo base_url('register'); ?>">Account</a></li>
+					<?php } ?>
 				</ul>
 				<ul class="list-unstyled d-flex justify-content-between align-items-center mb-0 gap-4 me-md-3 me-1">
 					<?php if (empty($this->session->userdata('logged_user'))) { ?>
@@ -99,12 +105,10 @@
 						<li class="nav-icon" method="GET" action="<?php echo base_url('home/shop'); ?>" id="bigger-search" data-bs-toggle="offcanvas" data-bs-target="#searchOffcanvas"><i class="bi bi-search"></i></li>
 						<li class="nav-icon" style="text-shadow: none;"><a href="<?php echo base_url('home/barcode_scan'); ?>"><i class="bi bi-qr-code-scan"></i></a></li>
 						<li class="nav-icon"><a href="<?php echo base_url('wishlist'); ?>"><i class="bi bi-heart"></i></a></li>
-						<li class="nav-icon position-relative"><a href="<?php echo base_url('shopping-cart'); ?>"><i class="bi bi-bag"></i>
-								<span class="wishlistcount">
-
-									<?php print_r(get_cart_count_fast()); ?>
-									<?= is_numeric($cartItems) && (int)$cartItems == 1 ? 1 : $sumOfItems ?>
-								</span>
+						<li class="nav-icon position-relative">
+							<a href="javascript:void(0);" id="cartIconBtn" data-bs-toggle="offcanvas" data-bs-target="#cartOffcanvas">
+								<i class="bi bi-bag"></i>
+								<span class="wishlistcount" id="cartItemCount"><?php echo count(cart_item()); ?></span>
 							</a>
 						</li>
 						<li class="nav-icon">
@@ -255,7 +259,108 @@
 				</ul>
 			</div>
 		</div>
-	</header>
+		<!-- Cart Offcanvas -->
+	<div class="offcanvas offcanvas-end" tabindex="-1" id="cartOffcanvas" style="width:380px;max-width:100vw;">
+		<div class="offcanvas-header border-bottom px-3 py-3">
+			<h6 class="fw-bold mb-0 text-uppercase">Cart (<span id="cartDrawerCount">0</span>)</h6>
+			<button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+		</div>
+		<div class="offcanvas-body p-3" id="cartDrawerBody" style="overflow-y:auto;">
+			<div class="text-center py-5 text-muted"><i class="bi bi-bag fs-1"></i><p class="mt-2">Loading...</p></div>
+		</div>
+		<div class="p-3 border-top" id="cartDrawerFooter" style="display:none;">
+			<div class="d-flex justify-content-between fw-bold mb-3">
+				<span>TOTAL</span>
+				<span id="cartDrawerTotal">₹0</span>
+			</div>
+			<a href="<?= base_url('checkout') ?>" class="btn btn-dark w-100 rounded-0 mb-2">PROCEED TO CHECKOUT</a>
+			<a href="<?= base_url('shopping-cart') ?>" class="btn btn-outline-dark w-100 rounded-0">VIEW FULL CART</a>
+		</div>
+	</div>
+</header>
+<script>
+(function(){
+	var cartOffcanvasEl  = document.getElementById('cartOffcanvas');
+	var cartDrawerBody   = document.getElementById('cartDrawerBody');
+	var cartDrawerCount  = document.getElementById('cartDrawerCount');
+	var cartDrawerTotal  = document.getElementById('cartDrawerTotal');
+	var cartDrawerFooter = document.getElementById('cartDrawerFooter');
+	var cartItemCount    = document.getElementById('cartItemCount');
+	var cartHtmlUrl   = '<?= base_url("home/get_cart_html") ?>';
+	var manageCartUrl = '<?= base_url("home/manageShoppingCart") ?>';
+	var minusQtyUrl   = '<?= base_url("home/minus_qty") ?>';
+	var removeCartUrl = '<?= base_url("home/ajax_remove_cart") ?>';
+
+	function ajaxPost(url, data, cb) {
+		var body = Object.keys(data).map(function(k){
+			return encodeURIComponent(k) + '=' + encodeURIComponent(data[k]);
+		}).join('&');
+		fetch(url, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded',
+				'X-Requested-With': 'XMLHttpRequest'
+			},
+			body: body
+		}).then(cb || function(){}).catch(function(){});
+	}
+
+	function refreshCart() {
+		fetch(cartHtmlUrl)
+			.then(function(r){ return r.json(); })
+			.then(function(d){
+				cartDrawerBody.innerHTML = d.html;
+				var c = parseInt(d.count) || 0;
+				if (cartDrawerCount)  cartDrawerCount.innerText  = c;
+				if (cartItemCount)    cartItemCount.innerText    = c;
+				if (cartDrawerTotal)  cartDrawerTotal.innerText  = '\u20b9' + d.total;
+				if (cartDrawerFooter) cartDrawerFooter.style.display = c > 0 ? 'block' : 'none';
+			})
+			.catch(function(){
+				cartDrawerBody.innerHTML = '<p class="text-danger text-center mt-3">Could not load cart.</p>';
+			});
+	}
+
+	if (cartOffcanvasEl) {
+		cartOffcanvasEl.addEventListener('show.bs.offcanvas', refreshCart);
+	}
+
+	document.addEventListener('click', function(e){
+		var plus   = e.target.closest('.cart-offcanvas-plus');
+		var minus  = e.target.closest('.cart-offcanvas-minus');
+		var remove = e.target.closest('.cart-offcanvas-remove');
+
+		if (plus) {
+			plus.disabled = true;
+			ajaxPost(manageCartUrl, {
+				article_id: plus.dataset.id,
+				action: 'add',
+				wsp: plus.dataset.wsp || 0,
+				mrp: plus.dataset.mrp || 0
+			}, refreshCart);
+		}
+		if (minus) {
+			minus.disabled = true;
+			ajaxPost(minusQtyUrl, {product_id: minus.dataset.id}, refreshCart);
+		}
+		if (remove) {
+			remove.disabled = true;
+			ajaxPost(removeCartUrl, {cart_id: remove.dataset.cartId}, function(){
+				refreshCart();
+				var cur = parseInt(cartItemCount && cartItemCount.innerText) || 0;
+				if (cartItemCount && cur > 0) cartItemCount.innerText = cur - 1;
+			});
+		}
+	});
+
+	/* refresh badge count after add-to-cart on shop page */
+	document.addEventListener('cartItemAdded', function(){
+		fetch(cartHtmlUrl)
+			.then(function(r){ return r.json(); })
+			.then(function(d){ if (cartItemCount) cartItemCount.innerText = parseInt(d.count)||0; });
+	});
+})();
+</script>
 	<main>
 		<div class="modal fade rolepopup" id="roleModal1" tabindex="-1" aria-hidden="true">
 			<div class="modal-dialog modal-dialog-centered">

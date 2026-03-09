@@ -1191,31 +1191,116 @@
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <div>
                                 <h5 class="mb-0">Saved Business Addresses</h5>
-                                <small class="text-muted">Manage your billing & delivery locations</small>
+                                <small class="text-muted">Manage your billing &amp; delivery locations</small>
                             </div>
-                            <a class="btn btn-primary btn-sm">
+                            <button type="button" class="btn btn-primary btn-sm" id="addNewAddressBtn"
+                                data-bs-toggle="modal" data-bs-target="#editAddressModal">
                                 <i class="bi bi-plus-lg"></i> Add New Address
-                            </a>
+                            </button>
                         </div>
-                        <div class="p-3 border rounded d-flex justify-content-between align-items-start">
-                            <div>
-                                <div class="fw-bold fs-6">Head Office (Billing Address)</div>
-                                <div class="mt-1">
-                                    <strong>Company:</strong> <?= get_current_user_info()->company_name; ?><br>
-                                    <strong>GST No:</strong> <?= get_current_user_info()->gst_no; ?><br>
-                                    <strong>Contact:</strong> <?= get_current_user_info()->contact_person; ?><br>
-                                    <strong>Phone:</strong> <?= get_current_user_info()->phone; ?><br>
-                                    <strong>Address:</strong>
-                                    <span class="text-muted"><?= get_current_user_info()->address; ?></span>
+
+                        <!-- Address list -->
+                        <div id="addressList">
+                        <?php if (!empty($user_addresses)): ?>
+                            <?php foreach ($user_addresses as $ua): ?>
+                            <div class="p-3 border rounded mb-2 d-flex justify-content-between align-items-start addr-list-card" data-id="<?= (int)$ua->id ?>">
+                                <div>
+                                    <?php if (!empty($ua->label)): ?>
+                                    <div class="fw-bold fs-6"><?= htmlspecialchars($ua->label) ?>
+                                        <?php if ($ua->is_default): ?><span class="badge bg-success ms-2" style="font-size:.7rem;">Default</span><?php endif; ?>
+                                    </div>
+                                    <?php elseif ($ua->is_default): ?>
+                                    <div class="fw-bold fs-6">Address <span class="badge bg-success ms-1" style="font-size:.7rem;">Default</span></div>
+                                    <?php endif; ?>
+                                    <div class="text-muted small mt-1">
+                                        <?php if (!empty($ua->company)): ?><strong>Company:</strong> <?= htmlspecialchars($ua->company) ?><br><?php endif; ?>
+                                        <?php if (!empty($ua->gst)): ?><strong>GST:</strong> <?= htmlspecialchars($ua->gst) ?><br><?php endif; ?>
+                                        <strong>Contact:</strong> <?= htmlspecialchars($ua->name) ?><br>
+                                        <strong>Phone:</strong> <?= htmlspecialchars($ua->phone) ?><br>
+                                        <strong>Address:</strong> <?= nl2br(htmlspecialchars($ua->address)) ?>
+                                    </div>
+                                </div>
+                                <div class="d-flex gap-2 flex-shrink-0 ms-3">
+                                    <?php if (!$ua->is_default): ?>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary addr-set-default-btn"
+                                        data-id="<?= (int)$ua->id ?>">Set Default</button>
+                                    <?php endif; ?>
+                                    <button type="button" class="btn btn-sm btn-outline-primary addr-edit-btn"
+                                        data-id="<?= (int)$ua->id ?>"
+                                        data-label="<?= htmlspecialchars($ua->label ?? '') ?>"
+                                        data-company="<?= htmlspecialchars($ua->company ?? '') ?>"
+                                        data-gst="<?= htmlspecialchars($ua->gst ?? '') ?>"
+                                        data-name="<?= htmlspecialchars($ua->name ?? '') ?>"
+                                        data-phone="<?= htmlspecialchars($ua->phone ?? '') ?>"
+                                        data-address="<?= htmlspecialchars($ua->address ?? '') ?>"
+                                        data-default="<?= (int)$ua->is_default ?>"
+                                        data-bs-toggle="modal" data-bs-target="#editAddressModal">
+                                        <i class="bi bi-pencil"></i> Edit
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger addr-delete-btn"
+                                        data-id="<?= (int)$ua->id ?>">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
                                 </div>
                             </div>
-                            <div class="d-flex gap-2">
-                                <a class="btn btn-sm btn-outline-primary">
-                                    <i class="bi bi-pencil"></i> Edit
-                                </a>
-                                <a class="btn btn-sm btn-outline-danger">
-                                    <i class="bi bi-trash"></i> Delete
-                                </a>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <div id="noAddressMsg" class="text-muted text-center py-4">
+                                <i class="bi bi-geo-alt fs-2 d-block mb-2"></i>
+                                No saved addresses yet. Click "Add New Address" to get started.
+                            </div>
+                        <?php endif; ?>
+                        </div>
+
+                        <!-- Add / Edit Address Modal -->
+                        <div class="modal fade" id="editAddressModal" tabindex="-1">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content border-0 rounded-2">
+                                    <div class="modal-header border-0">
+                                        <h5 class="modal-title fw-normal" id="addrModalTitle">Add New Address</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body px-4">
+                                        <div id="addrSaveMsg" class="alert alert-success d-none">Saved successfully.</div>
+                                        <input type="hidden" id="addrId" value="0">
+                                        <div class="row g-3">
+                                            <div class="col-12">
+                                                <label class="form-label small">Address Label (e.g. "Head Office")</label>
+                                                <input type="text" class="form-control" id="addrLabel" placeholder="Optional label">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label small">Company Name</label>
+                                                <input type="text" class="form-control" id="addrCompany">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label small">GST Number</label>
+                                                <input type="text" class="form-control" id="addrGst">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label small">Contact Name <span class="text-danger">*</span></label>
+                                                <input type="text" class="form-control" id="addrName">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label small">Phone <span class="text-danger">*</span></label>
+                                                <input type="tel" class="form-control" id="addrPhone">
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label small">Full Address <span class="text-danger">*</span></label>
+                                                <textarea class="form-control" id="addrAddress" rows="3"></textarea>
+                                            </div>
+                                            <div class="col-12">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="addrIsDefault">
+                                                    <label class="form-check-label small" for="addrIsDefault">Set as default address</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="d-flex justify-content-end gap-2 mt-4">
+                                            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                                            <button type="button" class="btn btn-dark" id="saveAddressBtn">Save</button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1462,30 +1547,42 @@
                             <h5 class="mb-0">Account Settings</h5>
                             <small class="text-muted">Manage your business profile and login details</small>
                         </div>
-                        <form class="mt-3">
+                        <?php $settingsUser = get_current_user_info(); ?>
+                        <div id="settingsSaveMsg" class="alert alert-success d-none mb-3">Profile updated successfully.</div>
+                        <div id="settingsSaveErr" class="alert alert-danger d-none mb-3">Failed to save. Please try again.</div>
+                        <form class="mt-3" id="accountSettingsForm">
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <label class="fw-semibold fs-6 mb-1">Contact Person Name</label>
-                                    <input class="form-control" required placeholder="Enter full name">
+                                    <input class="form-control" id="settingsName" placeholder="Enter full name" value="<?= htmlspecialchars($settingsUser->name ?? '') ?>">
                                 </div>
                                 <div class="col-md-6">
                                     <label class="fw-semibold fs-6 mb-1">Company Name</label>
-                                    <input class="form-control" required placeholder="Your company name">
+                                    <input class="form-control" id="settingsCompany" placeholder="Your company name" value="<?= htmlspecialchars($settingsUser->company ?? '') ?>">
                                 </div>
                                 <div class="col-md-6">
                                     <label class="fw-semibold fs-6 mb-1">GST Number</label>
-                                    <input class="form-control" placeholder="22AAAAA0000A1Z5">
+                                    <input class="form-control" id="settingsGst" placeholder="22AAAAA0000A1Z5" value="<?= htmlspecialchars($settingsUser->gst ?? '') ?>">
                                 </div>
                                 <div class="col-md-6">
                                     <label class="fw-semibold fs-6 mb-1">Business Email</label>
-                                    <input class="form-control" type="email" required placeholder="company@email.com">
+                                    <input class="form-control" type="email" id="settingsEmail" placeholder="company@email.com" value="<?= htmlspecialchars($settingsUser->email ?? '') ?>">
+                                    <div class="form-text text-muted" style="font-size:11px;">This is also used for login. Change with care.</div>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="fw-semibold fs-6 mb-1">Business Phone</label>
-                                    <input class="form-control" type="tel" placeholder="+91 9876543210">
+                                    <input class="form-control" type="tel" id="settingsPhone" placeholder="+91 9876543210" value="<?= htmlspecialchars($settingsUser->phone ?? '') ?>">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="fw-semibold fs-6 mb-1">PAN Number</label>
+                                    <input class="form-control" id="settingsPan" placeholder="ABCDE1234F" value="<?= htmlspecialchars($settingsUser->pan ?? '') ?>">
+                                </div>
+                                <div class="col-12">
+                                    <label class="fw-semibold fs-6 mb-1">Business Address</label>
+                                    <textarea class="form-control" id="settingsAddress" rows="2" placeholder="Full business address"><?= htmlspecialchars($settingsUser->address ?? '') ?></textarea>
                                 </div>
                                 <div class="col-12 d-flex gap-2 mt-3">
-                                    <button type="submit" class="btn btn-primary">
+                                    <button type="button" class="btn btn-primary" id="saveSettingsBtn">
                                         <i class="bi bi-check-lg"></i> Save Changes
                                     </button>
                                     <a type="button" class="btn btn-outline-secondary">
@@ -1677,5 +1774,192 @@ $.post('<?=base_url()?>users/add_client',
     });
 </script>
 
+<script>
+// Account Settings — save via AJAX
+document.getElementById('saveSettingsBtn').addEventListener('click', function () {
+    var btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving…';
+    document.getElementById('settingsSaveMsg').classList.add('d-none');
+    document.getElementById('settingsSaveErr').classList.add('d-none');
+
+    fetch('<?= base_url('home/save_settings') ?>', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            name:    document.getElementById('settingsName').value,
+            company: document.getElementById('settingsCompany').value,
+            gst:     document.getElementById('settingsGst').value,
+            email:   document.getElementById('settingsEmail').value,
+            phone:   document.getElementById('settingsPhone').value,
+            pan:     document.getElementById('settingsPan').value,
+            address: document.getElementById('settingsAddress').value,
+        })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function (res) {
+        if (res.success) {
+            document.getElementById('settingsSaveMsg').classList.remove('d-none');
+        } else {
+            document.getElementById('settingsSaveErr').classList.remove('d-none');
+        }
+    })
+    .catch(function () {
+        document.getElementById('settingsSaveErr').classList.remove('d-none');
+    })
+    .finally(function () {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-lg"></i> Save Changes';
+    });
+});
+</script>
+
 <?php include("footer.php") ?>
-<script src="<?php echo base_url(); ?>assets/js/jquery.min.js"></script>
+
+<script>
+// Address modal — Add / Edit / Delete / Set Default
+(function () {
+    var modalEl  = document.getElementById('editAddressModal');
+    var addrList = document.getElementById('addressList');
+
+    // Populate modal when it's about to show — based on which button triggered it
+    modalEl.addEventListener('show.bs.modal', function (event) {
+        var trigger = event.relatedTarget;
+        document.getElementById('addrSaveMsg').classList.add('d-none');
+
+        if (trigger && trigger.classList.contains('addr-edit-btn')) {
+            // Edit mode — pre-fill from data attributes
+            document.getElementById('addrModalTitle').textContent = 'Edit Address';
+            document.getElementById('addrId').value       = trigger.dataset.id      || '0';
+            document.getElementById('addrLabel').value    = trigger.dataset.label   || '';
+            document.getElementById('addrCompany').value  = trigger.dataset.company || '';
+            document.getElementById('addrGst').value      = trigger.dataset.gst     || '';
+            document.getElementById('addrName').value     = trigger.dataset.name    || '';
+            document.getElementById('addrPhone').value    = trigger.dataset.phone   || '';
+            document.getElementById('addrAddress').value  = trigger.dataset.address || '';
+            document.getElementById('addrIsDefault').checked = trigger.dataset.default === '1';
+        } else {
+            // Add New mode — clear form
+            document.getElementById('addrModalTitle').textContent = 'Add New Address';
+            document.getElementById('addrId').value       = '0';
+            document.getElementById('addrLabel').value    = '';
+            document.getElementById('addrCompany').value  = '';
+            document.getElementById('addrGst').value      = '';
+            document.getElementById('addrName').value     = '';
+            document.getElementById('addrPhone').value    = '';
+            document.getElementById('addrAddress').value  = '';
+            document.getElementById('addrIsDefault').checked = false;
+        }
+    });
+
+    // Delete / Set Default (delegated — edit is handled by data-bs-toggle)
+    addrList.addEventListener('click', function (e) {
+        var delBtn = e.target.closest('.addr-delete-btn');
+        if (delBtn) {
+            if (!confirm('Delete this address?')) return;
+            var id = delBtn.dataset.id;
+            fetch('<?= base_url('home/delete_user_address') ?>', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ id: id })
+            })
+            .then(r => r.json())
+            .then(function (res) {
+                if (res.success) {
+                    var card = addrList.querySelector('.addr-list-card[data-id="' + id + '"]');
+                    if (card) card.remove();
+                    if (!addrList.querySelector('.addr-list-card')) {
+                        addrList.innerHTML = '<div class="text-muted text-center py-4"><i class="bi bi-geo-alt fs-2 d-block mb-2"></i>No saved addresses yet.</div>';
+                    }
+                }
+            });
+            return;
+        }
+
+        var defBtn = e.target.closest('.addr-set-default-btn');
+        if (defBtn) {
+            fetch('<?= base_url('home/set_default_address') ?>', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ id: defBtn.dataset.id })
+            })
+            .then(r => r.json())
+            .then(function (res) { if (res.success) location.reload(); });
+        }
+    });
+
+    // Save button inside modal
+    document.getElementById('saveAddressBtn').addEventListener('click', function () {
+        var btn = this;
+        btn.disabled = true;
+        btn.textContent = 'Saving…';
+        fetch('<?= base_url('home/save_user_address') ?>', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                id:         document.getElementById('addrId').value,
+                label:      document.getElementById('addrLabel').value,
+                company:    document.getElementById('addrCompany').value,
+                gst:        document.getElementById('addrGst').value,
+                name:       document.getElementById('addrName').value,
+                phone:      document.getElementById('addrPhone').value,
+                address:    document.getElementById('addrAddress').value,
+                is_default: document.getElementById('addrIsDefault').checked ? '1' : '0',
+            })
+        })
+        .then(r => r.json())
+        .then(function (res) {
+            if (res.success) {
+                document.getElementById('addrSaveMsg').classList.remove('d-none');
+                setTimeout(function () {
+                    bootstrap.Modal.getInstance(modalEl).hide();
+                    location.reload();
+                }, 700);
+            }
+        })
+        .finally(function () {
+            btn.disabled = false;
+            btn.textContent = 'Save';
+        });
+    });
+})();
+</script>
+
+<script>
+(function () {
+    function activateTab(hash) {
+        var link = document.querySelector('#pills-tab .nav-link[data-bs-target="' + hash + '"]');
+        if (!link) return;
+
+        // Deactivate all tabs and panes
+        document.querySelectorAll('#pills-tab .nav-link').forEach(function (el) {
+            el.classList.remove('active');
+            el.setAttribute('aria-selected', 'false');
+        });
+        document.querySelectorAll('.tab-content .tab-pane').forEach(function (el) {
+            el.classList.remove('show', 'active');
+        });
+
+        // Activate the target
+        link.classList.add('active');
+        link.setAttribute('aria-selected', 'true');
+        var pane = document.querySelector(hash);
+        if (pane) {
+            pane.classList.add('show', 'active');
+        }
+    }
+
+    // Update hash on tab click
+    document.querySelectorAll('#pills-tab .nav-link').forEach(function (link) {
+        link.addEventListener('click', function () {
+            var target = this.getAttribute('data-bs-target');
+            if (target) history.replaceState(null, '', target);
+        });
+    });
+
+    // Restore tab on page load
+    if (window.location.hash) {
+        activateTab(window.location.hash);
+    }
+})();
+</script>

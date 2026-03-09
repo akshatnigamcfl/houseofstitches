@@ -25,14 +25,23 @@ class Checkout extends MY_Controller
         $head['description'] = @$arrSeo['description'];
         $head['keywords'] = str_replace(" ", ",", $head['title']);
              // echo '<pre>'; print_r($this->input->post());               die('Hello world');
-        if (isset($_POST['payment_type'])) {  
+        if (isset($_POST['payment_type'])) {
+            // Prevent duplicate order on double-submit / browser retry
+            $submitToken = $_POST['submit_token'] ?? '';
+            $sessionToken = $this->session->userdata('checkout_token');
+            if (empty($submitToken) || $submitToken !== $sessionToken) {
+                $this->session->set_flashdata('submit_error', ['Invalid or duplicate submission. Please try again.']);
+                redirect(LANG_URL . '/checkout');
+            }
+            $this->session->unset_userdata('checkout_token'); // consume token
+
             $errors = $this->userInfoValidate($_POST);
             if (!empty($errors)) {
                 $this->session->set_flashdata('submit_error', $errors);
             } else {
                 $_POST['referrer'] = $this->session->userdata('referrer');
                 $_POST['clean_referrer'] = cleanReferral($_POST['referrer']);
-                $_POST['user_id'] = isset($_SESSION['logged_user']) ? $_SESSION['logged_user'] : 0;
+                $_POST['user_id'] = user_id() ?: 0;
                  $orderId = $this->Public_model->setOrder($_POST); 
                 if ($orderId != false) {
                     /*
@@ -40,7 +49,8 @@ class Checkout extends MY_Controller
                      */
                      
                     $this->setVendorOrders();
-                    $this->orderId = $orderId; 
+                    $this->orderId = $orderId;
+                    $this->saveUserAddress($_POST);
                     $this->setActivationLink();
                     $this->sendNotifications();
                     $this->goToDestination();
@@ -51,12 +61,27 @@ class Checkout extends MY_Controller
                 } 
             }
         }  
-        $data['bank_account'] = $this->Orders_model->getBankAccountSettings();  
-        $data['cashondelivery_visibility'] = $this->Home_admin_model->getValueStore('cashondelivery_visibility'); 
-        $data['paypal_email'] = $this->Home_admin_model->getValueStore('paypal_email');  
+        // Generate a fresh one-time submit token for the form
+        $token = bin2hex(random_bytes(16));
+        $this->session->set_userdata('checkout_token', $token);
+        $data['submit_token'] = $token;
+
+        $data['bank_account'] = $this->Orders_model->getBankAccountSettings();
+        $data['cashondelivery_visibility'] = $this->Home_admin_model->getValueStore('cashondelivery_visibility');
+        $data['paypal_email'] = $this->Home_admin_model->getValueStore('paypal_email');
         $data['shippingAmount'] = $this->Home_admin_model->getValueStore('shippingAmount');
-        $data['bestSellers'] = $this->Public_model->getbestSellers();  
+        $data['bestSellers'] = $this->Public_model->getbestSellers();
+        // Load saved addresses for checkout step 1
+        $data['user_addresses'] = $this->_get_user_addresses();
         $this->render('checkout', $head, $data);
+    }
+
+    private function _get_user_addresses()
+    {
+        $uid = user_id();
+        if (!$uid) return [];
+        if (!$this->db->table_exists('user_addresses')) return [];
+        return $this->db->where('user_id', $uid)->order_by('is_default DESC, id ASC')->get('user_addresses')->result();
     }
 
     private function setVendorOrders()
@@ -103,80 +128,62 @@ class Checkout extends MY_Controller
         $this->smtp_email($to_email, $to_name, $subject,$msg,$orderId);
     }
     
-    public function smtp_email($to_email, $to_name, $subject,$msg,$orderId ) {
-         $order =  $this->db->query('SELECT products FROM `orders` where order_id = '.$orderId.' ')->row();
-        //echo '<pre>'; print_r(unserialize($order->products)); die;
-         $this->load->library('email');
-        $this->load->helper('url');
-        // Clear any previous emails
+    public function smtp_email($to_email, $to_name, $subject, $msg, $orderId)
+    {
+        $order = $this->db->query('SELECT products FROM `orders` WHERE order_id = ' . (int)$orderId)->row();
+        $this->load->library('email');
         $this->email->clear();
-        
-        // SMTP Settings (loaded from config/email.php)
+
         $this->email->from('nitesh54546@gmail.com', 'House of Stitches');
         $this->email->to($to_email);
-        $this->email->cc('admin@houseofstitches.in');  // Optional
-        $this->email->bcc('backup@houseofstitches.in'); // Optional
-        
-        $this->email->subject('🧵 Order Confirmation - House of Stitches'.$subject);
-        
-        // HTML Email Body
-        $message = '
-        <html>
-        <head><meta charset="UTF-8"></head>
-        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="background: #f8f9fa; padding: 40px 20px;">
-                <h1 style="color: #e74c3c; text-align: center;">Order Confirmed! 🎉</h1>
-                <p>Dear <strong>' . $to_name . '</strong>,</p>
-                <p><strong>' . $msg . '</strong>,</p>
+        $this->email->cc('admin@houseofstitches.in');
+        $this->email->bcc('backup@houseofstitches.in');
+        $this->email->subject('Order Confirmation - House of Stitches');
+
+        $rows = '';
+        if ($order && $order->products) {
+            foreach (unserialize($order->products) as $val) {
+                $item = get_product_details($val['product_info']['id'] ?? null);
+                if (!$item) continue;
+                $img = base_url('attachments/shop_images/' . $item->image);
+                $rows .= '<tr>
+                    <td style="padding:8px;"><img src="' . $img . '" style="width:60px;height:auto;"></td>
+                    <td style="padding:8px;">' . htmlspecialchars($item->title) . '</td>
+                    <td style="padding:8px;">&#8377; ' . $item->price . '</td>
+                    <td style="padding:8px;">' . (int)$val['product_quantity'] . '</td>
+                </tr>';
+            }
+        }
+
+        $message = '<html><head><meta charset="UTF-8"></head>
+        <body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+            <div style="background:#f8f9fa;padding:40px 20px;">
+                <h1 style="color:#e74c3c;text-align:center;">Order Confirmed!</h1>
+                <p>Dear <strong>' . htmlspecialchars($to_name) . '</strong>,</p>
+                <p>' . $msg . '</p>
                 <p>Thank you for your purchase from <strong>House of Stitches</strong>!</p>
-                
-                <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-                    <tr style="background: #e74c3c; color: white;">
-                        <th style="padding: 12px; text-align: left;">Product</th>
-                        <th style="padding: 12px;">Price</th>
-                        <th style="padding: 12px;">Qty</th>
-                    </tr>'; 
-                   
-             $i= '0'; foreach (unserialize($order->products) as $val){ $i++; //echo '<pre>'; print_r($val);
-             $item = get_product_details($val['product_info']['id']);
-             $img = base_url('attachments/shop_images/'.$item->image);
-                $message = '<tr style="background: white;">
-                 <td>
-                <img src='.$img.'
-                     alt='.$img.'
-                     style="width:60px;height:auto;">
-            </td>
-                        <td style="padding: 12px;">'.$item->title.'</td>
-                        <td style="padding: 12px;">₹ '.$item->price.'</td>
-                        <td style="padding: 12px;">'.$val['product_quantity'].'</td>
-                    </tr>';
-                     } 
-                '</table>
-                
-                <div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                    <strong>Total: ₹599</strong>
-                </div>
-                
+                <table style="width:100%;border-collapse:collapse;margin:20px 0;">
+                    <tr style="background:#e74c3c;color:white;">
+                        <th style="padding:12px;text-align:left;">Image</th>
+                        <th style="padding:12px;text-align:left;">Product</th>
+                        <th style="padding:12px;">Price</th>
+                        <th style="padding:12px;">Qty</th>
+                    </tr>' . $rows . '
+                </table>
                 <p>We\'ll ship your order within 2-3 business days.</p>
-                
-                <hr style="border: none; border-top: 1px solid #eee;">
-                <p style="font-size: 12px; color: #666; text-align: center;">
+                <hr style="border:none;border-top:1px solid #eee;">
+                <p style="font-size:12px;color:#666;text-align:center;">
                     House of Stitches | info@houseofstitches.in | +91 9876543210
                 </p>
             </div>
-        </body>
-        </html>';
-        
+        </body></html>';
+
         $this->email->message($message);
-        
-        // SEND EMAIL ✅
+
         if ($this->email->send()) {
-            echo "<h2>✅ SMTP Email Sent Successfully!</h2>";
-            echo "<p>To: <strong>" . $to_email . "</strong></p>";
-            echo "<p>Check your inbox/spam folder!</p>";
+            log_message('info', 'Order confirmation email sent to: ' . $to_email);
         } else {
-            echo "<h2>❌ SMTP Email Failed!</h2>";
-            echo "<pre>" . $this->email->print_debugger(['headers' => FALSE]) . "</pre>";
+            log_message('error', 'Order confirmation email failed: ' . $this->email->print_debugger(['headers' => FALSE]));
         }
     }
     private function goToDestination()
@@ -201,6 +208,12 @@ class Checkout extends MY_Controller
         }
     }
 
+    private function saveUserAddress($post)
+    {
+        // No-op: user profile is managed only via Account Settings.
+        // Checkout data is stored in orders_clients and user_addresses only.
+    }
+
     private function userInfoValidate($post)
     {
         $errors = array();
@@ -220,9 +233,7 @@ class Checkout extends MY_Controller
         if (mb_strlen(trim($post['address'])) == 0) {
             $errors[] = lang('address_empty');
         }
-        if (mb_strlen(trim($post['city'])) == 0) {
-            $errors[] = lang('invalid_city');
-        }
+        // city is optional — not collected as a separate field in the current checkout
         return $errors;
     }
 
@@ -277,7 +288,7 @@ LEFT JOIN
             $head['keywords'] = str_replace(" ", ",", $head['title']);
             $this->render('ordercompleted', $head, $data);
         } else {
-            redirect(LANG_URL . '/checkout');
+            redirect(LANG_URL . '/home/shop');
         }
     }
 

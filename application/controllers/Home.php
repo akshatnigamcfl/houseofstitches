@@ -59,20 +59,25 @@ $results = $query->result(); //echo $this->db->last_query(); die;
     echo $html; die;
     }
     public function minus_qty(){
-         
-        $set_quanity = get_product_quantity($_POST['product_id']);
-        $sql = 'SELECT quantity FROM `cart_items` where `product_id` ='.$_POST['product_id'].' and session_id='.user_id().'';
-        $cart_product_quantity = $this->db->query($sql)->row()->quantity;
-        $new_qty = $cart_product_quantity-$set_quanity;
-        $set_quanity_pcs = $new_qty/$set_quanity;
-            $this->db->where(['product_id' => $_POST['product_id'], 'session_id' => user_id()])
-             ->update('cart_items', ['quantity' => $new_qty,'set_quantity'=>$set_quanity_pcs]);
-             //echo $this->db->last_query(); die;
-                 echo json_encode([
-        'success' => true,
-        //'cart_count' => get_cart_count(),
-        //'total' => get_cart_total_price()
-    ]);
+        if (!is_logged_in()) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'login_required' => true]);
+            exit();
+        }
+        $product_id = (int)$_POST['product_id'];
+        $set_quanity = (int)get_product_quantity($product_id);
+        if ($set_quanity <= 0) $set_quanity = 1;
+        $row = $this->db->get_where('cart_items', ['product_id' => $product_id, 'session_id' => user_id()])->row();
+        if (!$row) { echo json_encode(['success' => true]); exit(); }
+        $new_qty = (int)$row->quantity - $set_quanity;
+        if ($new_qty <= 0) {
+            $this->db->delete('cart_items', ['product_id' => $product_id, 'session_id' => user_id()]);
+        } else {
+            $new_sets = (int)$row->set_quantity - 1;
+            $this->db->where(['product_id' => $product_id, 'session_id' => user_id()])
+                     ->update('cart_items', ['quantity' => $new_qty, 'set_quantity' => max(0, $new_sets)]);
+        }
+        echo json_encode(['success' => true]);
 
 
     }
@@ -188,8 +193,10 @@ public function scan_result() {
         $data['brands'] = $this->Brands_model->getBrands();
         $data['showOutOfStock'] = $this->Home_admin_model->getValueStore('outOfStock');
         $data['shippingOrder'] = $this->Home_admin_model->getValueStore('shippingOrder');
-        $data['products'] = $this->Public_model->getProducts($this->num_rows, $page, $_GET); 
-          //echo '<pre>'; print_r( $data['products']); 
+        $data['products'] = $this->Public_model->getProducts($this->num_rows, $page, $_GET);
+          //echo '<pre>'; print_r( $data['products']);
+        $product_ids = array_column($data['products'], 'id');
+        $data['variations'] = $this->Public_model->getVariationsForProducts($product_ids);
         $rowscount = $this->Public_model->productsCount($_GET);
         $data['links_pagination'] = pagination('home/shop', $rowscount, $this->num_rows);
         $this->render('shop', $head, $data);
@@ -275,6 +282,11 @@ public function scan_result() {
     {
         if (!$this->input->is_ajax_request()) {
             exit('No direct script access allowed');
+        }
+        if (!is_logged_in()) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'login_required' => true]);
+            exit();
         }
         $this->shoppingcart->manageShoppingCart();
     }
@@ -515,11 +527,11 @@ if ($query === FALSE) {
     }
     
     public function account()
-    {   
+    {
         $this->load->model(array('Orders_model'));
         $data = array();
         $head = array();
-        $data['clients'] = $this->db->query('SELECT * FROM `users_public` where parent_id ='.user_id().' ')->result();
+        $data['clients'] = $this->db->query('SELECT * FROM `users_public` WHERE FIND_IN_SET(?, agents)', [(string)user_id()])->result();
         $head['title'] = 'Administration - Orders';
         $head['description'] = '!';
         $head['keywords'] = '';
@@ -530,9 +542,130 @@ if ($query === FALSE) {
         }
         $data['orders'] = $this->Orders_model->orders($this->num_rows, $page=null, $order_by);
         $data['product'] = $this-> Wishlist_model->get_wishlist();
+        $data['user_addresses'] = $this->_get_user_addresses();
         $this->load->view('templates/redlabel/_parts/header');
         $this->load->view('templates/redlabel/account',$data);
         $this->load->view('templates/redlabel/_parts/footer');
+    }
+
+    // ── user_addresses helpers ──────────────────────────────────
+
+    private function _ensure_user_addresses_table()
+    {
+        if (!$this->db->table_exists('user_addresses')) {
+            $this->db->query('CREATE TABLE IF NOT EXISTS `user_addresses` (
+                `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                `user_id`    INT UNSIGNED NOT NULL,
+                `label`      VARCHAR(100) NOT NULL DEFAULT \'\',
+                `company`    VARCHAR(200) NOT NULL DEFAULT \'\',
+                `gst`        VARCHAR(50)  NOT NULL DEFAULT \'\',
+                `name`       VARCHAR(200) NOT NULL DEFAULT \'\',
+                `phone`      VARCHAR(30)  NOT NULL DEFAULT \'\',
+                `address`    TEXT         NOT NULL,
+                `is_default` TINYINT(1)   NOT NULL DEFAULT 0,
+                `created_at` INT UNSIGNED NOT NULL DEFAULT 0,
+                INDEX (`user_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+        }
+    }
+
+    private function _get_user_addresses()
+    {
+        $uid = user_id();
+        if (!$uid) return [];
+        $this->_ensure_user_addresses_table();
+        return $this->db->where('user_id', $uid)->order_by('is_default DESC, id ASC')->get('user_addresses')->result();
+    }
+
+    public function save_user_address()
+    {
+        header('Content-Type: application/json');
+        if (!is_logged_in()) { echo json_encode(['success' => false]); exit(); }
+        $uid = user_id();
+        $this->_ensure_user_addresses_table();
+
+        $id      = (int)$this->input->post('id');
+        $label   = trim($this->input->post('label')   ?? '');
+        $company = trim($this->input->post('company') ?? '');
+        $gst     = trim($this->input->post('gst')     ?? '');
+        $name    = trim($this->input->post('name')    ?? '');
+        $phone   = trim($this->input->post('phone')   ?? '');
+        $address = trim($this->input->post('address') ?? '');
+        $isDefault = (int)(bool)$this->input->post('is_default');
+
+        if ($isDefault) {
+            $this->db->where('user_id', $uid)->update('user_addresses', ['is_default' => 0]);
+        }
+
+        $row = [
+            'label'      => $label,
+            'company'    => $company,
+            'gst'        => $gst,
+            'name'       => $name,
+            'phone'      => $phone,
+            'address'    => $address,
+            'is_default' => $isDefault,
+        ];
+
+        if ($id > 0) {
+            // Only update own record
+            $this->db->where(['id' => $id, 'user_id' => $uid])->update('user_addresses', $row);
+            $savedId = $id;
+        } else {
+            // Check if this is the first address — make it default automatically
+            $count = $this->db->where('user_id', $uid)->count_all_results('user_addresses');
+            if ($count === 0) $row['is_default'] = 1;
+            $row['user_id']    = $uid;
+            $row['created_at'] = time();
+            $this->db->insert('user_addresses', $row);
+            $savedId = $this->db->insert_id();
+        }
+
+        echo json_encode(['success' => true, 'id' => $savedId]);
+        exit();
+    }
+
+    public function delete_user_address()
+    {
+        header('Content-Type: application/json');
+        if (!is_logged_in()) { echo json_encode(['success' => false]); exit(); }
+        $uid = user_id();
+        $this->_ensure_user_addresses_table();
+        $id = (int)$this->input->post('id');
+        if ($id < 1) { echo json_encode(['success' => false]); exit(); }
+
+        // Fetch before deleting to know if it was default
+        $addr = $this->db->where(['id' => $id, 'user_id' => $uid])->get('user_addresses')->row();
+        if (!$addr) { echo json_encode(['success' => false]); exit(); }
+
+        $this->db->where(['id' => $id, 'user_id' => $uid])->delete('user_addresses');
+
+        // If deleted address was default, promote the oldest remaining address
+        if ($addr->is_default) {
+            $next = $this->db->where('user_id', $uid)->order_by('id ASC')->limit(1)->get('user_addresses')->row();
+            if ($next) {
+                $this->db->where('id', $next->id)->update('user_addresses', ['is_default' => 1]);
+            }
+        }
+
+        echo json_encode(['success' => true]);
+        exit();
+    }
+
+    public function set_default_address()
+    {
+        header('Content-Type: application/json');
+        if (!is_logged_in()) { echo json_encode(['success' => false]); exit(); }
+        $uid = user_id();
+        $this->_ensure_user_addresses_table();
+        $id = (int)$this->input->post('id');
+        if ($id < 1) { echo json_encode(['success' => false]); exit(); }
+
+        $this->db->where('user_id', $uid)->update('user_addresses', ['is_default' => 0]);
+        $this->db->where(['id' => $id, 'user_id' => $uid])->update('user_addresses', ['is_default' => 1]);
+
+        echo json_encode(['success' => true]);
+        exit();
     }
     
     public function wishlist()
@@ -546,5 +679,131 @@ if ($query === FALSE) {
     public function platform()
     {
         $this->load->view('main/platform/index');
+    }
+
+    public function get_cart_html()
+    {
+        ob_start();
+        $items = cart_item();
+        $total = 0;
+        foreach ($items as $item) {
+            $total += (float)($item['wsp'] ?? 0) * (int)($item['quantity'] ?? 0);
+        }
+        $count = count($items);
+        $fallback = base_url('attachments/shop_images/spark_logo-06.jpg');
+
+        $html = '';
+        if (empty($items)) {
+            $html = '<div class="text-center py-5 text-muted"><i class="bi bi-bag fs-1"></i><p class="mt-3">Your cart is empty.</p></div>';
+        } else {
+            foreach ($items as $item) {
+                $img     = base_url('attachments/shop_images/' . ($item['image'] ?? ''));
+                $brand   = htmlspecialchars($item['brand'] ?? '', ENT_QUOTES);
+                $title   = htmlspecialchars($item['title'] ?? '', ENT_QUOTES);
+                $color   = htmlspecialchars($item['color'] ?? '', ENT_QUOTES);
+                $size    = htmlspecialchars($item['size_range'] ?? '', ENT_QUOTES);
+                $pid     = (int)$item['product_id'];
+                $cid     = (int)$item['id'];
+                $sets    = (int)$item['set_quantity'];
+                $qty     = (int)$item['quantity'];
+                $wsp     = (float)$item['wsp'];
+                $mrp     = (float)$item['mrp'];
+                $line    = number_format($wsp * $qty, 0);
+                $uid     = (int)user_id();
+
+                $html .= '<div class="cart-item-row d-flex gap-2 mb-3 pb-3 border-bottom align-items-start">';
+                $html .=   '<img src="' . $img . '" onerror="this.src=\'' . $fallback . '\'" width="72" height="88" style="object-fit:cover;flex-shrink:0;">';
+                $html .=   '<div class="flex-grow-1 min-w-0">';
+                $html .=     '<div class="fw-semibold small">' . $brand . '</div>';
+                $html .=     '<div class="small text-truncate">' . $title . '</div>';
+                $html .=     '<div class="small text-muted">' . $color . ($size ? ' · ' . $size : '') . '</div>';
+                $html .=     '<div class="d-flex align-items-center mt-2 gap-1">';
+                $html .=       '<button type="button" class="btn btn-sm btn-outline-dark cart-offcanvas-minus px-2 py-0" data-id="' . $pid . '" style="line-height:1.6;">−</button>';
+                $html .=       '<span class="fw-semibold small px-1">' . $sets . ' set' . ($sets > 1 ? 's' : '') . '</span>';
+                $html .=       '<button type="button" class="btn btn-sm btn-outline-dark cart-offcanvas-plus px-2 py-0" data-id="' . $pid . '" data-wsp="' . $wsp . '" data-mrp="' . $mrp . '" style="line-height:1.6;">+</button>';
+                $html .=       '<span class="ms-auto fw-bold small">₹' . $line . '</span>';
+                $html .=     '</div>';
+                $html .=   '</div>';
+                $html .=   '<button type="button" class="cart-offcanvas-remove btn-close ms-1" style="font-size:.6rem;flex-shrink:0;margin-top:2px;" data-cart-id="' . $cid . '"></button>';
+                $html .= '</div>';
+            }
+        }
+
+        ob_clean();
+        header('Content-Type: application/json');
+        echo json_encode([
+            'html'  => $html,
+            'count' => $count,
+            'total' => number_format($total, 0),
+        ]);
+        exit();
+    }
+
+    public function save_address()
+    {
+        if (!is_logged_in()) {
+            echo json_encode(['success' => false]);
+            exit();
+        }
+        $fields = ['company', 'gst', 'name', 'phone', 'address'];
+        $update = [];
+        foreach ($fields as $f) {
+            $val = $this->input->post($f);
+            if ($val !== null) {
+                $update[$f] = $val;
+            }
+        }
+        if (!empty($update)) {
+            $this->db->where('id', user_id())->update('users_public', $update);
+        }
+        header('Content-Type: application/json');
+        echo json_encode(['success' => true]);
+        exit();
+    }
+
+    public function save_settings()
+    {
+        header('Content-Type: application/json');
+        if (!is_logged_in()) {
+            echo json_encode(['success' => false, 'msg' => 'Not logged in']);
+            exit();
+        }
+        $update = [];
+        $allowed = ['name', 'company', 'gst', 'phone', 'address', 'pan'];
+        foreach ($allowed as $f) {
+            $val = $this->input->post($f);
+            if ($val !== false) {
+                $update[$f] = trim($val);
+            }
+        }
+        // Email: only update if it looks valid and differs from current
+        $email = trim($this->input->post('email'));
+        if ($email && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $update['email'] = $email;
+        }
+        if (!empty($update)) {
+            $ok = $this->db->where('id', user_id())->update('users_public', $update);
+            echo json_encode(['success' => (bool)$ok]);
+        } else {
+            echo json_encode(['success' => true]);
+        }
+        exit();
+    }
+
+    public function ajax_remove_cart()
+    {
+        if (!is_logged_in()) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'login_required' => true]);
+            exit();
+        }
+        $cart_id = (int)$this->input->post('cart_id');
+        $this->db->delete('cart_items', [
+            'session_id' => user_id(),
+            'id'         => $cart_id,
+        ]);
+        header('Content-Type: application/json');
+        echo json_encode(['success' => true]);
+        exit();
     }
 }

@@ -148,6 +148,7 @@
                                     <li><a href="<?= base_url('admin/pages') ?>" <?= urldecode(uri_string()) == 'admin/pages' ? 'class="active"' : '' ?>><i class="fa fa-file" aria-hidden="true"></i> <?= lang('active_pages') ?></a></li>
                                     <li><a href="<?= base_url('admin/emails') ?>" <?= urldecode(uri_string()) == 'admin/emails' ? 'class="active"' : '' ?>><i class="fa fa-envelope-o" aria-hidden="true"></i> <?= lang('subscribed_emails') ?></a></li>
                                     <li><a href="<?= base_url('admin/history') ?>" <?= urldecode(uri_string()) == 'admin/history' ? 'class="active"' : '' ?>><i class="fa fa-history" aria-hidden="true"></i> <?= lang('activity_history') ?></a></li>
+                                    <li><a href="<?= base_url('admin/taxsettings') ?>" <?= urldecode(uri_string()) == 'admin/taxsettings' ? 'class="active"' : '' ?>><i class="fa fa-percent" aria-hidden="true"></i> Tax Settings</a></li>
                                     <li class="header"><?= lang('ADVANCED_SETTINGS') ?></li>
                                     <li><a href="<?= base_url('admin/languages') ?>" <?= urldecode(uri_string()) == 'admin/languages' ? 'class="active"' : '' ?>><i class="fa fa-globe" aria-hidden="true"></i> <?= lang('languages') ?></a></li>
                                     <li><a href="<?= base_url('admin/filemanager') ?>" <?= urldecode(uri_string()) == 'admin/filemanager' ? 'class="active"' : '' ?>><i class="fa fa-file-code-o" aria-hidden="true"></i> <?= lang('file_manager') ?></a></li>

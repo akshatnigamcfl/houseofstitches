@@ -7,12 +7,21 @@ class Orders_model extends CI_Model
     {
         parent::__construct();
         $this->load->library('encryption');
+        if (!$this->db->field_exists('company', 'orders_clients')) {
+            $this->db->query('ALTER TABLE `orders_clients` ADD COLUMN `company` VARCHAR(200) NOT NULL DEFAULT \'\' AFTER `first_name`');
+        }
+        if (!$this->db->field_exists('gst', 'orders_clients')) {
+            $this->db->query('ALTER TABLE `orders_clients` ADD COLUMN `gst` VARCHAR(50) NOT NULL DEFAULT \'\' AFTER `company`');
+        }
     }
 
-    public function ordersCount($onlyNew = false)
+    public function ordersCount($onlyNew = false, $status = null)
     {
         if ($onlyNew == true) {
             $this->db->where('viewed', 0);
+        }
+        if ($status !== null) {
+            $this->db->where('processed', $status);
         }
         return $this->db->count_all_results('orders');
     }
@@ -24,12 +33,14 @@ class Orders_model extends CI_Model
         } else {
             $this->db->order_by('id', 'DESC');
         }
-        $this->db->select('orders.*, orders_clients.first_name,'
+        $this->db->select('orders.*, orders_clients.first_name, orders_clients.company, orders_clients.gst,'
                 . ' orders_clients.last_name, orders_clients.email, orders_clients.phone, '
                 . 'orders_clients.address, orders_clients.city, orders_clients.post_code,'
-                . ' orders_clients.notes, discount_codes.type as discount_type, discount_codes.amount as discount_amount');
-        $this->db->join('orders_clients', 'orders_clients.for_id = orders.id', 'inner');
+                . ' orders_clients.notes, discount_codes.type as discount_type, discount_codes.amount as discount_amount,'
+                . ' users_public.company as buyer_company, users_public.name as buyer_contact, users_public.gst as buyer_gst');
+        $this->db->join('orders_clients', 'orders_clients.for_id = orders.id AND orders_clients.id = (SELECT MIN(oc.id) FROM orders_clients oc WHERE oc.for_id = orders.id)', 'left');
         $this->db->join('discount_codes', 'discount_codes.code = orders.discount_code', 'left');
+        $this->db->join('users_public', 'users_public.id = orders.user_id', 'left');
         $result = $this->db->get('orders', $limit, $page)->result_array();
         //$result = $result->result_array();
         if(!count($result)) return $result;

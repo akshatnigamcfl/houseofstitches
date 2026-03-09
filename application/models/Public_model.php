@@ -403,16 +403,25 @@ class Public_model extends CI_Model
         }else{
             $notes = '';
         }
+        // Ensure company/gst columns exist (added in v1.0.5)
+        if (!$this->db->field_exists('company', 'orders_clients')) {
+            $this->db->query('ALTER TABLE `orders_clients` ADD COLUMN `company` VARCHAR(200) NOT NULL DEFAULT \'\' AFTER `first_name`');
+        }
+        if (!$this->db->field_exists('gst', 'orders_clients')) {
+            $this->db->query('ALTER TABLE `orders_clients` ADD COLUMN `gst` VARCHAR(50) NOT NULL DEFAULT \'\' AFTER `company`');
+        }
         if (!$this->db->insert('orders_clients', array(
-                    'for_id' => $lastId,
+                    'for_id'     => $lastId,
                     'first_name' => $this->encryption->encrypt($post['first_name']),
-                    'last_name' => $last_name,
-                    'email' => $this->encryption->encrypt($post['email']),
-                    'phone' => $this->encryption->encrypt($post['phone']),
-                    'address' => $this->encryption->encrypt($post['address']),
-                    'city' => $this->encryption->encrypt($post['city']),
-                    'post_code' => $post_code,
-                    'notes' => $notes
+                    'company'    => $this->encryption->encrypt($post['company'] ?? ''),
+                    'gst'        => $this->encryption->encrypt($post['gst']     ?? ''),
+                    'last_name'  => $last_name,
+                    'email'      => $this->encryption->encrypt($post['email']),
+                    'phone'      => $this->encryption->encrypt($post['phone']),
+                    'address'    => $this->encryption->encrypt($post['address']),
+                    'city'       => $this->encryption->encrypt($post['city']),
+                    'post_code'  => $post_code,
+                    'notes'      => $notes
                 ))) {
             log_message('error', print_r($this->db->error(), true));
         }
@@ -750,6 +759,15 @@ class Public_model extends CI_Model
         }
     }
 
+    public function checkUserPendingApproval($post)
+    {
+        $this->db->where('email', $post['email']);
+        $this->db->where('password', md5($post['pass']));
+        $this->db->where('status', '2');
+        $query = $this->db->get('users_public');
+        return !empty($query->row_array());
+    }
+
     public function getUserProfileInfo($id)
     {
         $this->db->where('id', $id);
@@ -767,6 +785,20 @@ class Public_model extends CI_Model
     {
         $query = $this->db->select('url')->get('blog_posts');
         return $query;
+    }
+
+    public function getVariationsForProducts($product_ids)
+    {
+        if (empty($product_ids) || !$this->db->table_exists('product_variations')) {
+            return [];
+        }
+        $this->db->where_in('product_id', $product_ids);
+        $rows = $this->db->get('product_variations')->result_array();
+        $result = [];
+        foreach ($rows as $row) {
+            $result[$row['product_id']][] = $row;
+        }
+        return $result;
     }
 
     public function getUserOrdersHistoryCount($userId)

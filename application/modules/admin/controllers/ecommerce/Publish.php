@@ -38,10 +38,12 @@ class Publish extends ADMIN_Controller
             if (isset($_GET['to_lang'])) {
                 $id = 0;
             }
-            
-            
+
             $_POST['image'] = $this->uploadImage();
-            $this->Products_model->setProduct($_POST, $id);
+            $product_id = $this->Products_model->setProduct($_POST, $id);
+            $colors = isset($_POST['variation_color']) ? $_POST['variation_color'] : [];
+            $sizes  = isset($_POST['variation_sizes'])  ? $_POST['variation_sizes']  : [];
+            $this->Products_model->saveVariations($product_id, $colors, $sizes);
             $this->session->set_flashdata('result_publish', 'Product is published!');
             if ($id == 0) {
                 $this->saveHistory('Success published product');
@@ -69,6 +71,7 @@ class Publish extends ADMIN_Controller
         $data['shop_categories'] = $this->Categories_model->getShopCategories();
         $data['brands'] = $this->Brands_model->getBrands();
         $data['otherImgs'] = $this->loadOthersImages();
+        $data['variations'] = ($id > 0) ? $this->Products_model->getVariations($id) : [];
         $this->load->view('_parts/header', $head);
         $this->load->view('ecommerce/publish', $data);
         $this->load->view('_parts/footer');

@@ -131,14 +131,116 @@ if ($this->session->flashdata('result_publish')) {
         <input type="text" placeholder="number" name="quantity" value="<?= isset($_POST['quantity']) ? htmlspecialchars($_POST['quantity']) : '' ?>" class="form-control" id="quantity">
     </div>
     <div class="form-group for-shop">
-        <label>Color</label>
-        <input type="text" placeholder="color" name="color" value="<?= isset($_POST['color']) ? htmlspecialchars($_POST['color']) : '' ?>" class="form-control" id="color">
+        <label><strong>Size &amp; Color Variations</strong></label>
+        <div id="variations-container">
+            <?php
+            $existingVariations = isset($variations) && !empty($variations) ? $variations : [['color'=>'','sizes'=>'']];
+            foreach ($existingVariations as $v):
+            ?>
+            <div class="variation-row" style="background:#f9f9f9;border:1px solid #ddd;border-radius:4px;padding:10px;margin-bottom:8px;">
+                <div class="row">
+                    <div class="col-sm-3">
+                        <label>Color</label>
+                        <input type="text" name="variation_color[]" class="form-control" placeholder="e.g. Red, Navy" value="<?= htmlspecialchars($v['color']) ?>">
+                    </div>
+                    <div class="col-sm-8">
+                        <label>Sizes <small class="text-muted">(click to add/remove)</small></label>
+                        <input type="text" name="variation_sizes[]" class="form-control var-sizes-input" placeholder="e.g. S,M,L or 0-3M,3-6M" value="<?= htmlspecialchars($v['sizes']) ?>" style="margin-bottom:6px;">
+                        <div class="size-quick-tags" style="line-height:2;">
+                            <small class="text-muted">Baby:</small>
+                            <?php foreach(['0-3M','3-6M','6-9M','6-12M','12-18M','18-24M'] as $s): ?>
+                            <button type="button" class="btn btn-xs btn-default size-tag" data-size="<?= $s ?>"><?= $s ?></button>
+                            <?php endforeach; ?>
+                            &nbsp;<small class="text-muted">Kids:</small>
+                            <?php foreach(['2Y','3Y','4Y','5Y','6Y','7Y','8Y','9Y','10Y','11Y','12Y','13Y','14Y','15Y'] as $s): ?>
+                            <button type="button" class="btn btn-xs btn-default size-tag" data-size="<?= $s ?>"><?= $s ?></button>
+                            <?php endforeach; ?>
+                            &nbsp;<small class="text-muted">Adult:</small>
+                            <?php foreach(['XS','S','M','L','XL','XXL','XXXL'] as $s): ?>
+                            <button type="button" class="btn btn-xs btn-default size-tag" data-size="<?= $s ?>"><?= $s ?></button>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    <div class="col-sm-1" style="padding-top:22px;">
+                        <button type="button" class="btn btn-danger btn-xs remove-variation" title="Remove"><span class="glyphicon glyphicon-remove"></span></button>
+                    </div>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <button type="button" id="add-variation" class="btn btn-default btn-sm" style="margin-top:4px;">
+            <span class="glyphicon glyphicon-plus"></span> Add Variation
+        </button>
     </div>
-    
-        <div class="form-group for-shop">
-        <label>Size Range</label>
-        <input type="text" placeholder="Size Range" name="size_range" value="<?= isset($_POST['size_range']) ? htmlspecialchars($_POST['size_range']) : '' ?>" class="form-control" id="size_range">
-    </div>
+
+    <script>
+    (function() {
+        var sizesList = ['0-3M','3-6M','6-9M','6-12M','12-18M','18-24M','2Y','3Y','4Y','5Y','6Y','7Y','8Y','9Y','10Y','11Y','12Y','13Y','14Y','15Y','XS','S','M','L','XL','XXL','XXXL'];
+
+        function buildRow(color, sizes) {
+            color = color || ''; sizes = sizes || '';
+            var tagsHtml = '';
+            var groups = [
+                {label:'Baby:', sizes:['0-3M','3-6M','6-9M','6-12M','12-18M','18-24M']},
+                {label:'Kids:', sizes:['2Y','3Y','4Y','5Y','6Y','7Y','8Y','9Y','10Y','11Y','12Y','13Y','14Y','15Y']},
+                {label:'Adult:', sizes:['XS','S','M','L','XL','XXL','XXXL']}
+            ];
+            groups.forEach(function(g) {
+                tagsHtml += '<small class="text-muted">'+g.label+'</small> ';
+                g.sizes.forEach(function(s) {
+                    tagsHtml += '<button type="button" class="btn btn-xs btn-default size-tag" data-size="'+s+'">'+s+'</button> ';
+                });
+                tagsHtml += '&nbsp;';
+            });
+            return '<div class="variation-row" style="background:#f9f9f9;border:1px solid #ddd;border-radius:4px;padding:10px;margin-bottom:8px;"><div class="row"><div class="col-sm-3"><label>Color</label><input type="text" name="variation_color[]" class="form-control" placeholder="e.g. Red, Navy" value="'+color+'"></div><div class="col-sm-8"><label>Sizes <small class="text-muted">(click to add/remove)</small></label><input type="text" name="variation_sizes[]" class="form-control var-sizes-input" placeholder="e.g. S,M,L or 0-3M,3-6M" value="'+sizes+'" style="margin-bottom:6px;"><div class="size-quick-tags" style="line-height:2;">'+tagsHtml+'</div></div><div class="col-sm-1" style="padding-top:22px;"><button type="button" class="btn btn-danger btn-xs remove-variation" title="Remove"><span class="glyphicon glyphicon-remove"></span></button></div></div></div>';
+        }
+
+        document.getElementById('add-variation').onclick = function() {
+            var cont = document.getElementById('variations-container');
+            cont.insertAdjacentHTML('beforeend', buildRow());
+        };
+
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('remove-variation') || e.target.closest && e.target.closest('.remove-variation')) {
+                var btn = e.target.classList.contains('remove-variation') ? e.target : e.target.closest('.remove-variation');
+                var row = btn.closest('.variation-row');
+                if (document.querySelectorAll('.variation-row').length > 1) {
+                    row.remove();
+                }
+            }
+            if (e.target.classList.contains('size-tag')) {
+                var tag = e.target;
+                var row = tag.closest('.variation-row');
+                var input = row.querySelector('.var-sizes-input');
+                var size = tag.getAttribute('data-size');
+                var parts = input.value.split(',').map(function(s){return s.trim();}).filter(Boolean);
+                var idx = parts.indexOf(size);
+                if (idx === -1) {
+                    parts.push(size);
+                    tag.classList.add('btn-primary');
+                    tag.classList.remove('btn-default');
+                } else {
+                    parts.splice(idx, 1);
+                    tag.classList.remove('btn-primary');
+                    tag.classList.add('btn-default');
+                }
+                input.value = parts.join(',');
+            }
+        });
+
+        // Highlight size tags that match existing values on page load
+        document.querySelectorAll('.variation-row').forEach(function(row) {
+            var input = row.querySelector('.var-sizes-input');
+            var parts = input.value.split(',').map(function(s){return s.trim();}).filter(Boolean);
+            row.querySelectorAll('.size-tag').forEach(function(tag) {
+                if (parts.indexOf(tag.getAttribute('data-size')) !== -1) {
+                    tag.classList.add('btn-primary');
+                    tag.classList.remove('btn-default');
+                }
+            });
+        });
+    })();
+    </script>
     <?php if ($showBrands == 1) { ?>
         <div class="form-group for-shop">
             <label>Brand</label>

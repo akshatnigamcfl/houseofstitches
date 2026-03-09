@@ -97,21 +97,21 @@
                         <span>Apply Coupon</span>
                         <a href="#" data-bs-toggle="modal" data-bs-target="#discountModal"><u>Add</u></a>
                     </div>
+                    <?php $tax = get_tax_breakdown($cartItems['finalSum']); ?>
                     <div class="d-flex justify-content-between mb-3">
                         <span>Order value</span>
-                        <span> <?php echo $total; ?></span>
+                        <span>Rs. <?php echo number_format($tax['base'], 2); ?></span>
                     </div>
+                    <?php if ($tax['enabled'] && $tax['rate'] > 0): ?>
                     <div class="d-flex justify-content-between mb-3">
-                        <span>Tax</span>
-                        <?php
-                        $gst_breakdown = calculate_gst($total, 5);
-                        ?>
-                        <span>Rs. <?php echo $gst_breakdown['gst_amount']; ?></span>
+                        <span>Tax (<?php echo $tax['rate']; ?>%)</span>
+                        <span>Rs. <?php echo number_format($tax['tax_amount'], 2); ?></span>
                     </div>
+                    <?php endif; ?>
                     <hr>
                     <div class="d-flex justify-content-between mb-4">
                         <strong>Total</strong>
-                        <strong>Rs.<?php echo $gst_breakdown['total_with_gst']; ?></strong>
+                        <strong>Rs. <?php echo number_format($tax['total'], 2); ?></strong>
                     </div>
                     <!-- <button type="submit" class="btn_button w-100">Proceed to Checkout</button> -->
                     <?php $isCartEmpty = empty($cartItems['array']); ?>
