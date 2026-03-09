@@ -44,10 +44,13 @@ class Users extends MY_Controller
 
     public function register()
     {
-        
+        log_message('debug', '[REGISTER] page hit. Method=' . $_SERVER['REQUEST_METHOD'] . ' POST keys=' . implode(',', array_keys($_POST)));
+
         if (isset($_POST['signup'])) {
+            log_message('debug', '[REGISTER] signup POST received. email=' . ($_POST['email'] ?? '') . ' name=' . ($_POST['name'] ?? ''));
             $result = $this->registerValidate();
-            
+            log_message('debug', '[REGISTER] registerValidate() returned=' . ($result ? 'true' : 'false') . ' errors=' . implode('|', $this->registerErrors));
+
             if ($result == false) {
                 redirect(LANG_URL . '/register?error=' . urlencode($this->registerErrors[0]));
             } else {
@@ -125,12 +128,6 @@ foreach ($this->input->cookie() as $name => $value) {
         if (mb_strlen(trim($_POST['pass'])) == 0) {
             $errors[] = lang('enter_password');
         }
-        /*if (mb_strlen(trim($_POST['pass_repeat'])) == 0) {
-            $errors[] = lang('repeat_password');
-        }
-        if ($_POST['pass'] != $_POST['pass_repeat']) {
-            $errors[] = lang('passwords_dont_match');
-        }*/
 
         $count_emails = $this->Public_model->countPublicUsersWithEmail($_POST['email']);
         if ($count_emails > 0) {
@@ -140,9 +137,13 @@ foreach ($this->input->cookie() as $name => $value) {
             $this->registerErrors = $errors;
             return false;
         }
+
+        log_message('debug', '[REGISTER] Validation passed. Inserting user...');
         $this->user_id = $this->Public_model->registerUser($_POST);
+        log_message('debug', '[REGISTER] registerUser() returned user_id=' . $this->user_id . ' DB error=' . json_encode($this->db->error()));
+
         $msg = 'Your login Credential Are <br> <b>Email</b>: '.$_POST['email'].' <br> <b>Password</b>: '.$_POST['pass'].' ';
-        $this->smtp_email($to_email=$_POST['email'], $to_name=$_POST['name'], $subject='', $url='www.houseofstitches.in',$msg);
+        $this->smtp_email($to_email=$_POST['email'], $to_name=$_POST['name'], $subject='', $url='www.houseofstitches.in', $msg);
         return true;
     }
         public function add_client(){
