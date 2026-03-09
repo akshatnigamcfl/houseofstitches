@@ -48,13 +48,10 @@ class Users extends MY_Controller
         if (isset($_POST['signup'])) {
             $result = $this->registerValidate();
             
-            if ($result == false) { //print_r($this->registerErrors); die;
-                $this->session->set_flashdata('userError', $this->registerErrors[0]);
-                redirect(LANG_URL . '/register');
+            if ($result == false) {
+                redirect(LANG_URL . '/register?error=' . urlencode($this->registerErrors[0]));
             } else {
-               // $_SESSION['logged_user'] = $this->user_id; //id of user
-               $this->session->set_flashdata('success', 'You have registered successfully. Once Admin will approve you will receive an e-mail with login details. ');
-                redirect(LANG_URL . '/register');
+                redirect(LANG_URL . '/register?registered=1');
             }
         }
         $head = array();

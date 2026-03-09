@@ -6,24 +6,19 @@
 <?php include("header.php") ?>
 <div class="approvalbox">
     <div class="container">
-        <?php
-        if ($this->session->flashdata('login_error')) {
-        ?>
+        <?php if ($this->session->flashdata('login_error')): ?>
             <div class="alert alert-danger"><?= $this->session->flashdata('login_error') ?></div>
-        <?php
-        }
-        if ($this->session->flashdata('userError')) {
-        ?>
+        <?php endif; ?>
+        <?php if (isset($_GET['error']) && $_GET['error'] !== ''): ?>
+            <div class="alert alert-danger"><?= htmlspecialchars($_GET['error']) ?></div>
+        <?php elseif ($this->session->flashdata('userError')): ?>
             <div class="alert alert-danger"><?= $this->session->flashdata('userError') ?></div>
-        <?php
-        }
-
-        if ($this->session->flashdata('success')) {
-        ?>
-            <div class="alert alert-success"><?= $this->session->flashdata('success'); ?></div>
-        <?php
-        }
-        ?>
+        <?php endif; ?>
+        <?php if (isset($_GET['registered'])): ?>
+            <div class="alert alert-success">You have registered successfully. Once Admin approves your account, you will receive an e-mail with login details.</div>
+        <?php elseif ($this->session->flashdata('success')): ?>
+            <div class="alert alert-success"><?= $this->session->flashdata('success') ?></div>
+        <?php endif; ?>
         <div class="row justify-content-center align-items-center">
             <div class="col-lg-8 col-12 approveform">
                 <ul class="nav nav-tabs mb-md-5 mb-4" role="tablist">
