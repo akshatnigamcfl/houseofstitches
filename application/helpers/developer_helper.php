@@ -64,15 +64,15 @@ function is_logged_in() {
 
 function user_id()
 {
-   $CI =& get_instance();
-   $info = $CI->session->all_userdata(); 
-   $id = $info['logged_user']['id'];
-    if(!empty($id)){
-       $id = $info['logged_user']['id'];
-   }else{
-       $id = $info['logged_user'];
-   } 
-    return $id;
+    $CI =& get_instance();
+    $logged_user = $CI->session->userdata('logged_user');
+    if (empty($logged_user)) {
+        return null;
+    }
+    if (is_array($logged_user) && isset($logged_user['id'])) {
+        return $logged_user['id'];
+    }
+    return $logged_user;
 }
 function get_loggedin_user_details()
 {   

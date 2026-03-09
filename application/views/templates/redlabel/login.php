@@ -3,7 +3,7 @@
     content="Browse our wholesale kidswear shop – premium bulk clothing for boys & girls aged 6–15 years. Trusted supplier in India for bulk orders only. Quality at scale.">
 <meta name="keywords"
     content="wholesale kidswear shop, bulk kids clothing India, wholesale children’s fashion, kidswear supplier India, wholesale boys & girls wear, bulk order kids clothes, kidswear wholesale online, wholesale kids clothing distributor, House of Stitches shop, kidswear wholesale supplier">
-<?php include("header.php") ?>
+<?php include(dirname(__FILE__) . '/header.php') ?>
 <div class="approvalbox">
     <div class="container">
         <?php if ($this->session->flashdata('login_error')): ?>
@@ -119,7 +119,7 @@
     </div>
 </div>
 
-<?php include("footer.php") ?>
+<?php include(dirname(__FILE__) . '/footer.php') ?>
 <style>
     .hide {
         display: none;
