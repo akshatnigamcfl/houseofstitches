@@ -23,7 +23,7 @@ class Public_model extends CI_Model
     {
         $this->db->join('products_translations', 'products_translations.for_id = products.id', 'left');
         $this->db->where('products_translations.abbr', MY_LANGUAGE_ABBR);
-        if (!empty($big_get) && isset($big_get['category'])) {
+        if (!empty($big_get)) {
             $this->getFilter($big_get);
         }
         $this->db->where('visibility', 1);
@@ -41,6 +41,13 @@ class Public_model extends CI_Model
 
     public function getNewProducts()
     {
+        $limit = $this->_getSectionLimit('new_arrivals');
+        if ($this->db->table_exists('home_sections')) {
+            $count = $this->db->where('section', 'new_arrivals')->count_all_results('home_sections');
+            if ($count > 0) {
+                return $this->_getSectionProducts('new_arrivals', $limit);
+            }
+        }
         $this->db->select('vendors.url as vendor_url, products.id, products.quantity, products.image, products.url, products_translations.price, products_translations.title, products_translations.old_price');
         $this->db->join('products_translations', 'products_translations.for_id = products.id', 'left');
         $this->db->join('vendors', 'vendors.id = products.vendor_id', 'left');
@@ -51,9 +58,46 @@ class Public_model extends CI_Model
             $this->db->where('quantity >', 0);
         }
         $this->db->order_by('products.id', 'desc');
-        $this->db->limit(5);
+        $this->db->limit($limit);
         $query = $this->db->get('products');
         return $query->result_array();
+    }
+
+    public function getFeaturedProducts()
+    {
+        $limit = $this->_getSectionLimit('featured');
+        if ($this->db->table_exists('home_sections')) {
+            $count = $this->db->where('section', 'featured')->count_all_results('home_sections');
+            if ($count > 0) {
+                return $this->_getSectionProducts('featured', $limit);
+            }
+        }
+        return $this->getSliderProducts();
+    }
+
+    private function _getSectionLimit($section)
+    {
+        if ($this->db->table_exists('home_section_settings')) {
+            $row = $this->db->get_where('home_section_settings', ['section' => $section])->row();
+            if ($row) return (int)$row->item_limit;
+        }
+        return 8;
+    }
+
+    private function _getSectionProducts($section, $limit)
+    {
+        return $this->db->query("
+            SELECT vendors.url AS vendor_url, p.id, p.quantity, p.image, p.url,
+                   pt.price, pt.title, pt.old_price
+            FROM home_sections hs
+            JOIN products p ON p.id = hs.product_id
+            JOIN products_translations pt ON pt.for_id = p.id AND pt.abbr = '" . MY_LANGUAGE_ABBR . "'
+            LEFT JOIN vendors ON vendors.id = p.vendor_id
+            WHERE hs.section = '" . $this->db->escape_str($section) . "'
+            AND p.visibility = 1
+            ORDER BY hs.sort_order ASC, hs.id ASC
+            LIMIT " . (int)$limit . "
+        ")->result_array();
     }
 
     public function getLastBlogs()
@@ -87,9 +131,8 @@ class Public_model extends CI_Model
         if ($limit !== null && $start !== null) {
             $this->db->limit($limit, $start);
         }
-        if (!empty($big_get) && isset($big_get['category'])) { 
-            $this->getFilter($big_get); 
-           
+        if (!empty($big_get)) {
+            $this->getFilter($big_get);
         }
         $this->db->select('vendors.url as vendor_url, products.id,products.image, products.quantity, 
         products_translations.title,
@@ -133,47 +176,48 @@ class Public_model extends CI_Model
 
     private function getFilter($big_get)
     {
+        $big_get = array_merge([
+            'category' => '', 'in_stock' => '', 'search_in_title' => '',
+            'season' => '', 'gender' => '', 'search_in_brand' => '',
+            'search_in_desc' => '', 'search_in_color' => '', 'search_in_size' => '',
+            'search_in_body' => '', 'order_price' => '', 'order_procurement' => '',
+            'order_new' => '', 'quantity_more' => '', 'brand_id' => '',
+            'added_after' => '', 'added_before' => '', 'price_from' => '', 'price_to' => '',
+        ], $big_get);
 
         if ($big_get['category'] != '') {
-            (int) $big_get['category'];
-            $findInIds = array();
-            $findInIds[] = $big_get['category'];
-            $query = $this->db->query('SELECT id FROM shop_categories WHERE sub_for = ' . $this->db->escape($big_get['category']));
-            foreach ($query->result() as $row) {
-                $findInIds[] = $row->id;
+            $catIds = array_filter(array_map('intval', explode(',', $big_get['category'])));
+            if (!empty($catIds)) {
+                $findInIds = $catIds;
+                foreach ($catIds as $cid) {
+                    $q = $this->db->query('SELECT id FROM shop_categories WHERE sub_for = ' . (int)$cid);
+                    foreach ($q->result() as $row) {
+                        $findInIds[] = (int)$row->id;
+                    }
+                }
+                $this->db->where_in('products.shop_categorie', array_unique($findInIds));
             }
-            $this->db->where_in('products.shop_categorie', $findInIds);
         }
         if ($big_get['in_stock'] != '') {
-            if ($big_get['in_stock'] == 1)
-                $sign = '>';
-            else
-                $sign = '=';
+            $sign = ($big_get['in_stock'] == 1) ? '>' : '=';
             $this->db->where('products.quantity ' . $sign, '0');
         }
-        if ($big_get['search_in_title'] != '') { 
+        if ($big_get['search_in_title'] != '') {
             $this->db->like('products_translations.title', $big_get['search_in_title']);
         }
-        if ($big_get['category'] != '') { 
-            $cat = array_unique(explode(',', $big_get['category'])); //print_r($cat); die;
-                $cat1 = array_unique($big_get['category']);  // Already array, no explode needed
-            if(is_array($cat)){ 
-                $this->db->where_in('products_translations.description', $cat);
-            }else{ 
-                $this->db->where('products_translations.description', $big_get['category']);
+        if ($big_get['season'] != '') {
+            $search = array_filter(array_unique(explode(',', $big_get['season'])));
+            if (!empty($search)) {
+                $this->db->group_start();
+                foreach ($search as $i => $val) {
+                    if ($i === 0) {
+                        $this->db->like('products_translations.season', trim($val));
+                    } else {
+                        $this->db->or_like('products_translations.season', trim($val));
+                    }
+                }
+                $this->db->group_end();
             }
-           // print_r($cat); die;
-        /*    foreach ($cat as $row){
-               $this->db->where_in('products_translations.description', $row);
-            }*/
-        }
-        if ($big_get['season'] != '') {  //echo $big_get['season']; 
-        $a = implode(',', array_unique(explode(',', $big_get['season'])));
-        $search = array_unique(explode(',', $big_get['season']));
-          foreach ($search as $val){
-           $this->db->or_like('products_translations.season', $val);
-          }
-
         }
         if ($big_get['gender'] != '') {
             $this->db->like('products_translations.gender', $big_get['gender']);
@@ -240,11 +284,46 @@ class Public_model extends CI_Model
         
     }
 
+    /**
+     * Returns sorted distinct non-empty values of a products_translations column.
+     * Allowed fields: season, gender, fabric, brand, color, size_range
+     */
+    public function getDistinctFilterValues($field)
+    {
+        $allowed = ['season', 'gender', 'fabric', 'brand', 'color', 'size_range'];
+        if (!in_array($field, $allowed)) return [];
+
+        // Normalize legacy numeric gender values to text labels
+        if ($field === 'gender') {
+            $this->db->query("UPDATE products_translations SET gender='Girls'  WHERE gender='1'");
+            $this->db->query("UPDATE products_translations SET gender='Boys'   WHERE gender='2'");
+            $this->db->query("UPDATE products_translations SET gender='Infant' WHERE gender='3'");
+            $this->db->query("UPDATE products_translations SET gender='Unisex' WHERE gender='4'");
+        }
+
+        $query = $this->db->query(
+            "SELECT DISTINCT `$field` FROM products_translations
+             WHERE `$field` IS NOT NULL AND `$field` != ''
+             AND abbr = ? ORDER BY `$field` ASC",
+            [MY_LANGUAGE_ABBR]
+        );
+        $values = [];
+        foreach ($query->result_array() as $row) {
+            // Season/gender may be stored as comma-separated; split them out
+            foreach (array_map('trim', explode(',', $row[$field])) as $v) {
+                if ($v !== '') $values[$v] = $v;
+            }
+        }
+        return array_values($values);
+    }
+
     public function getShopCategories()
     {
         $this->db->select('shop_categories.sub_for, shop_categories.id, shop_categories_translations.name');
-        $this->db->where('abbr', MY_LANGUAGE_ABBR);
-        $this->db->order_by('position', 'asc');
+        $this->db->where('shop_categories_translations.abbr', MY_LANGUAGE_ABBR);
+        $this->db->where('shop_categories_translations.name IS NOT NULL');
+        $this->db->where('shop_categories_translations.name !=', '');
+        $this->db->order_by('shop_categories.position', 'asc');
         $this->db->join('shop_categories', 'shop_categories.id = shop_categories_translations.for_id', 'INNER');
         $query = $this->db->get('shop_categories_translations');
         $arr = array();
@@ -275,7 +354,7 @@ class Public_model extends CI_Model
     {
         $this->db->where('products.id', $id);
 
-        $this->db->select('vendors.url as vendor_url, products.*, products_translations.title,products_translations.description, products_translations.price, products_translations.old_price, products.url, shop_categories_translations.name as categorie_name');
+        $this->db->select('vendors.url as vendor_url, products.*, products_translations.title, products_translations.description, products_translations.price, products_translations.old_price, products_translations.wsp, products_translations.msp, products_translations.color, products_translations.size_range, products_translations.fabric, products_translations.brand, products_translations.season, products.url, shop_categories_translations.name as categorie_name');
 
         $this->db->join('products_translations', 'products_translations.for_id = products.id', 'left');
         $this->db->where('products_translations.abbr', MY_LANGUAGE_ABBR);
@@ -537,6 +616,13 @@ class Public_model extends CI_Model
 
     public function getbestSellers($categorie = 0, $noId = 0)
     {
+        $limit = $this->_getSectionLimit('best_sellers');
+        if ($this->db->table_exists('home_sections')) {
+            $count = $this->db->where('section', 'best_sellers')->count_all_results('home_sections');
+            if ($count > 0) {
+                return $this->_getSectionProducts('best_sellers', $limit);
+            }
+        }
         $this->db->select('vendors.url as vendor_url, products.id, products.quantity, products.image, products.url, products_translations.price, products_translations.title, products_translations.old_price');
         $this->db->join('products_translations', 'products_translations.for_id = products.id', 'left');
         $this->db->join('vendors', 'vendors.id = products.vendor_id', 'left');
@@ -552,7 +638,7 @@ class Public_model extends CI_Model
             $this->db->where('quantity >', 0);
         }
         $this->db->order_by('products.procurement', 'desc');
-        $this->db->limit(5);
+        $this->db->limit($limit);
         $query = $this->db->get('products');
         return $query->result_array();
     }
@@ -791,6 +877,12 @@ class Public_model extends CI_Model
     {
         if (empty($product_ids) || !$this->db->table_exists('product_variations')) {
             return [];
+        }
+        if (!$this->db->field_exists('swatch', 'product_variations')) {
+            $this->db->query("ALTER TABLE `product_variations` ADD COLUMN `swatch` varchar(200) DEFAULT NULL");
+        }
+        if (!$this->db->field_exists('hex', 'product_variations')) {
+            $this->db->query("ALTER TABLE `product_variations` ADD COLUMN `hex` varchar(20) DEFAULT NULL");
         }
         $this->db->where_in('product_id', $product_ids);
         $rows = $this->db->get('product_variations')->result_array();

@@ -130,18 +130,60 @@ if ($this->session->flashdata('result_publish')) {
         <label>Quantity</label>
         <input type="text" placeholder="number" name="quantity" value="<?= isset($_POST['quantity']) ? htmlspecialchars($_POST['quantity']) : '' ?>" class="form-control" id="quantity">
     </div>
+    <style>
+    .variation-row { background:#f9f9f9; border:1px solid #ddd; border-radius:6px; padding:12px; margin-bottom:10px; }
+    .swatch-zone {
+        width:120px; height:120px; border:2px dashed #ccc; border-radius:8px;
+        background:#f0f0f0; cursor:pointer; overflow:hidden;
+        display:flex; align-items:center; justify-content:center;
+        margin:0 auto 6px; position:relative; transition:border-color .15s;
+    }
+    .swatch-zone:hover { border-color:#888; }
+    .swatch-zone img { width:100%; height:100%; object-fit:cover; display:block; position:absolute; inset:0; }
+    .swatch-zone .swatch-placeholder { color:#aaa; text-align:center; pointer-events:none; }
+    .swatch-zone .swatch-placeholder .glyphicon { font-size:28px; display:block; margin-bottom:4px; }
+    .swatch-zone .swatch-placeholder small { font-size:11px; }
+    .swatch-upload-msg { font-size:11px; color:#888; text-align:center; min-height:16px; }
+    .var-color-input { text-align:center; font-size:12px; margin-top:2px; }
+    .var-color-row { display:flex; align-items:center; gap:4px; margin-top:4px; }
+    .var-hex-picker { width:36px; height:28px; border:1px solid #ccc; border-radius:4px; padding:1px; cursor:pointer; flex-shrink:0; }
+    .var-color-input { flex:1; }
+    </style>
+
     <div class="form-group for-shop">
-        <label><strong>Size &amp; Color Variations</strong></label>
+        <label><strong>Swatch &amp; Size Variations</strong></label>
+        <p class="text-muted" style="font-size:12px;margin-bottom:8px;">Each variation = one colour of the product. Upload a swatch image, then add the available sizes.</p>
         <div id="variations-container">
             <?php
-            $existingVariations = isset($variations) && !empty($variations) ? $variations : [['color'=>'','sizes'=>'']];
+            $existingVariations = isset($variations) && !empty($variations) ? $variations : [['color'=>'','sizes'=>'','swatch'=>'','hex'=>'']];
             foreach ($existingVariations as $v):
+                $swatchFile = isset($v['swatch']) ? $v['swatch'] : '';
+                $swatchUrl  = $swatchFile ? base_url('attachments/product_swatches/' . $swatchFile) : '';
+                $vHex       = isset($v['hex']) && $v['hex'] ? $v['hex'] : '#cccccc';
             ?>
-            <div class="variation-row" style="background:#f9f9f9;border:1px solid #ddd;border-radius:4px;padding:10px;margin-bottom:8px;">
+            <div class="variation-row">
                 <div class="row">
-                    <div class="col-sm-3">
-                        <label>Color</label>
-                        <input type="text" name="variation_color[]" class="form-control" placeholder="e.g. Red, Navy" value="<?= htmlspecialchars($v['color']) ?>">
+                    <div class="col-sm-3 text-center">
+                        <div class="swatch-upload-wrap">
+                            <div class="swatch-zone">
+                                <?php if ($swatchUrl): ?>
+                                <img src="<?= $swatchUrl ?>" onerror="this.style.display='none'">
+                                <?php else: ?>
+                                <div class="swatch-placeholder">
+                                    <span class="glyphicon glyphicon-camera"></span>
+                                    <small>Click to upload<br>swatch image</small>
+                                </div>
+                                <?php endif; ?>
+                            </div>
+                            <input type="file" class="swatch-file-input" accept="image/*" style="display:none;">
+                            <input type="hidden" name="variation_swatch[]" class="swatch-filename" value="<?= htmlspecialchars($swatchFile) ?>">
+                            <div class="swatch-upload-msg"><?= $swatchUrl ? '✓ Uploaded' : 'No image yet' ?></div>
+                            <div class="var-color-row">
+                                <input type="color" class="var-hex-picker" value="<?= htmlspecialchars($vHex) ?>" title="Pick color">
+                                <input type="hidden" name="variation_hex[]" class="var-hex-value" value="<?= htmlspecialchars($vHex) ?>">
+                                <input type="text" name="variation_color[]" class="form-control var-color-input" placeholder="Color name" value="<?= htmlspecialchars($v['color']) ?>">
+                            </div>
+                        </div>
                     </div>
                     <div class="col-sm-8">
                         <label>Sizes <small class="text-muted">(click to add/remove)</small></label>
@@ -161,7 +203,7 @@ if ($this->session->flashdata('result_publish')) {
                             <?php endforeach; ?>
                         </div>
                     </div>
-                    <div class="col-sm-1" style="padding-top:22px;">
+                    <div class="col-sm-1" style="padding-top:10px;">
                         <button type="button" class="btn btn-danger btn-xs remove-variation" title="Remove"><span class="glyphicon glyphicon-remove"></span></button>
                     </div>
                 </div>
@@ -175,7 +217,7 @@ if ($this->session->flashdata('result_publish')) {
 
     <script>
     (function() {
-        var sizesList = ['0-3M','3-6M','6-9M','6-12M','12-18M','18-24M','2Y','3Y','4Y','5Y','6Y','7Y','8Y','9Y','10Y','11Y','12Y','13Y','14Y','15Y','XS','S','M','L','XL','XXL','XXXL'];
+        var swatchUploadUrl = '<?= base_url("admin/uploadSwatch") ?>';
 
         function buildRow(color, sizes) {
             color = color || ''; sizes = sizes || '';
@@ -192,7 +234,28 @@ if ($this->session->flashdata('result_publish')) {
                 });
                 tagsHtml += '&nbsp;';
             });
-            return '<div class="variation-row" style="background:#f9f9f9;border:1px solid #ddd;border-radius:4px;padding:10px;margin-bottom:8px;"><div class="row"><div class="col-sm-3"><label>Color</label><input type="text" name="variation_color[]" class="form-control" placeholder="e.g. Red, Navy" value="'+color+'"></div><div class="col-sm-8"><label>Sizes <small class="text-muted">(click to add/remove)</small></label><input type="text" name="variation_sizes[]" class="form-control var-sizes-input" placeholder="e.g. S,M,L or 0-3M,3-6M" value="'+sizes+'" style="margin-bottom:6px;"><div class="size-quick-tags" style="line-height:2;">'+tagsHtml+'</div></div><div class="col-sm-1" style="padding-top:22px;"><button type="button" class="btn btn-danger btn-xs remove-variation" title="Remove"><span class="glyphicon glyphicon-remove"></span></button></div></div></div>';
+            return '<div class="variation-row">'
+                + '<div class="row">'
+                + '<div class="col-sm-3 text-center">'
+                + '<div class="swatch-upload-wrap">'
+                + '<div class="swatch-zone">'
+                + '<div class="swatch-placeholder"><span class="glyphicon glyphicon-camera"></span><small>Click to upload<br>swatch image</small></div>'
+                + '</div>'
+                + '<input type="file" class="swatch-file-input" accept="image/*" style="display:none;">'
+                + '<input type="hidden" name="variation_swatch[]" class="swatch-filename" value="">'
+                + '<div class="swatch-upload-msg">No image yet</div>'
+                + '<div class="var-color-row">'
+                + '<input type="color" class="var-hex-picker" value="#cccccc" title="Pick color">'
+                + '<input type="hidden" name="variation_hex[]" class="var-hex-value" value="#cccccc">'
+                + '<input type="text" name="variation_color[]" class="form-control var-color-input" placeholder="Color name" value="'+color+'">'
+                + '</div>'
+                + '</div>'
+                + '</div>'
+                + '<div class="col-sm-8"><label>Sizes <small class="text-muted">(click to add/remove)</small></label>'
+                + '<input type="text" name="variation_sizes[]" class="form-control var-sizes-input" placeholder="e.g. S,M,L or 0-3M,3-6M" value="'+sizes+'" style="margin-bottom:6px;">'
+                + '<div class="size-quick-tags" style="line-height:2;">'+tagsHtml+'</div></div>'
+                + '<div class="col-sm-1" style="padding-top:10px;"><button type="button" class="btn btn-danger btn-xs remove-variation" title="Remove"><span class="glyphicon glyphicon-remove"></span></button></div>'
+                + '</div></div>';
         }
 
         document.getElementById('add-variation').onclick = function() {
@@ -200,14 +263,20 @@ if ($this->session->flashdata('result_publish')) {
             cont.insertAdjacentHTML('beforeend', buildRow());
         };
 
+        // Delegated click handler — clicking the swatch zone triggers file input
         document.addEventListener('click', function(e) {
-            if (e.target.classList.contains('remove-variation') || e.target.closest && e.target.closest('.remove-variation')) {
-                var btn = e.target.classList.contains('remove-variation') ? e.target : e.target.closest('.remove-variation');
-                var row = btn.closest('.variation-row');
-                if (document.querySelectorAll('.variation-row').length > 1) {
-                    row.remove();
-                }
+            var zone = e.target.closest && e.target.closest('.swatch-zone');
+            if (zone) {
+                zone.closest('.swatch-upload-wrap').querySelector('.swatch-file-input').click();
+                return;
             }
+
+            if (e.target.closest && e.target.closest('.remove-variation')) {
+                var row = e.target.closest('.variation-row');
+                if (document.querySelectorAll('.variation-row').length > 1) row.remove();
+                return;
+            }
+
             if (e.target.classList.contains('size-tag')) {
                 var tag = e.target;
                 var row = tag.closest('.variation-row');
@@ -228,7 +297,47 @@ if ($this->session->flashdata('result_publish')) {
             }
         });
 
-        // Highlight size tags that match existing values on page load
+        // Sync color picker → hidden hex input
+        document.addEventListener('input', function(e) {
+            if (e.target.classList.contains('var-hex-picker')) {
+                var row = e.target.closest('.var-color-row');
+                if (row) row.querySelector('.var-hex-value').value = e.target.value;
+            }
+        });
+
+        // File input change → AJAX upload
+        document.addEventListener('change', function(e) {
+            if (!e.target.classList.contains('swatch-file-input')) return;
+            var fileInput = e.target;
+            var wrap = fileInput.closest('.swatch-upload-wrap');
+            var zone = wrap.querySelector('.swatch-zone');
+            var msg  = wrap.querySelector('.swatch-upload-msg');
+            if (!fileInput.files || !fileInput.files[0]) return;
+            msg.textContent = 'Uploading…';
+            var fd = new FormData();
+            fd.append('swatch', fileInput.files[0]);
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', swatchUploadUrl, true);
+            xhr.onload = function() {
+                try {
+                    var res = JSON.parse(xhr.responseText);
+                    if (res.success) {
+                        zone.innerHTML = '<img src="'+res.url+'" onerror="this.style.display=\'none\'">';
+                        wrap.querySelector('.swatch-filename').value = res.filename;
+                        msg.textContent = '✓ Uploaded';
+                        setTimeout(function(){ msg.textContent=''; }, 2000);
+                    } else {
+                        msg.textContent = 'Error: ' + (res.error || 'Upload failed');
+                    }
+                } catch(ex) {
+                    msg.textContent = 'Upload failed';
+                }
+            };
+            xhr.onerror = function() { msg.textContent = 'Upload failed'; };
+            xhr.send(fd);
+        });
+
+        // Highlight size tags on page load
         document.querySelectorAll('.variation-row').forEach(function(row) {
             var input = row.querySelector('.var-sizes-input');
             var parts = input.value.split(',').map(function(s){return s.trim();}).filter(Boolean);
@@ -267,6 +376,67 @@ if ($this->session->flashdata('result_publish')) {
         <label>Position</label>
         <input type="text" placeholder="Position number" name="position" value="<?= isset($_POST['position']) ? htmlspecialchars($_POST['position']) : '' ?>" class="form-control">
     </div>
+
+    <div class="panel panel-default" style="margin-top:20px;">
+        <div class="panel-heading"><strong><i class="fa fa-filter"></i> Filter &amp; Catalogue Fields</strong></div>
+        <div class="panel-body">
+            <div class="row">
+                <div class="col-sm-6">
+                    <div class="form-group">
+                        <label>Season</label>
+                        <select name="season" class="form-control">
+                            <option value="">— None —</option>
+                            <?php
+                            $season_opts = ['Summer','Winter','Spring','Autumn','All Season'];
+                            $cur_season = !empty($_POST['season']) ? $_POST['season'] : '';
+                            foreach ($season_opts as $s): ?>
+                            <option value="<?= $s ?>" <?= ($cur_season == $s) ? 'selected' : '' ?>><?= $s ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-sm-6">
+                    <div class="form-group">
+                        <label>Gender</label>
+                        <select name="gender" class="form-control">
+                            <option value="">— None —</option>
+                            <?php
+                            $gender_opts = ['Girls','Boys','Infant','Unisex'];
+                            $cur_gender = !empty($_POST['gender']) ? $_POST['gender'] : '';
+                            foreach ($gender_opts as $g): ?>
+                            <option value="<?= $g ?>" <?= ($cur_gender == $g) ? 'selected' : '' ?>><?= $g ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-sm-6">
+                    <div class="form-group">
+                        <label>Color <small class="text-muted">(e.g. Red, Navy Blue)</small></label>
+                        <input type="text" name="color" class="form-control" placeholder="e.g. Red, Navy Blue" value="<?= htmlspecialchars(!empty($_POST['color']) ? $_POST['color'] : '') ?>">
+                    </div>
+                </div>
+                <div class="col-sm-6">
+                    <div class="form-group">
+                        <label>Size Range <small class="text-muted">(e.g. 2Y–8Y, S–XXL)</small></label>
+                        <input type="text" name="size_range" class="form-control" placeholder="e.g. 2Y–8Y" value="<?= htmlspecialchars(!empty($_POST['size_range']) ? $_POST['size_range'] : '') ?>">
+                    </div>
+                </div>
+                <div class="col-sm-6">
+                    <div class="form-group">
+                        <label>Fabric <small class="text-muted">(e.g. Cotton, Polyester)</small></label>
+                        <input type="text" name="fabric" class="form-control" placeholder="e.g. Cotton" value="<?= htmlspecialchars(!empty($_POST['fabric']) ? $_POST['fabric'] : '') ?>">
+                    </div>
+                </div>
+                <div class="col-sm-6">
+                    <div class="form-group">
+                        <label>Brand <small class="text-muted">(text label, e.g. House of Stitches)</small></label>
+                        <input type="text" name="brand" class="form-control" placeholder="e.g. House of Stitches" value="<?= htmlspecialchars(!empty($_POST['brand']) ? $_POST['brand'] : '') ?>">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <button type="submit" name="submit" class="btn btn-lg btn-default btn-publish">Publish</button>
     <?php if ($this->uri->segment(3) !== null) { ?>
         <a href="<?= base_url('admin/products') ?>" class="btn btn-lg btn-default">Cancel</a>

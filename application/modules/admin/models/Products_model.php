@@ -6,6 +6,23 @@ class Products_model extends CI_Model
     public function __construct()
     {
         parent::__construct();
+        $this->_ensureProductColumns();
+    }
+
+    private function _ensureProductColumns()
+    {
+        $cols = ['season' => 'VARCHAR(100)', 'gender' => 'VARCHAR(50)', 'fabric' => 'VARCHAR(100)', 'brand' => 'VARCHAR(100)'];
+        foreach ($cols as $col => $type) {
+            if (!$this->db->field_exists($col, 'products_translations')) {
+                $this->db->query("ALTER TABLE `products_translations` ADD COLUMN `$col` $type DEFAULT NULL");
+            }
+        }
+        // Fix gender column if it exists as a numeric type (tinyint) instead of VARCHAR
+        $genderInfo = $this->db->query("SHOW COLUMNS FROM `products_translations` LIKE 'gender'")->row_array();
+        if ($genderInfo && stripos($genderInfo['Type'], 'int') !== false) {
+            $this->db->query("ALTER TABLE `products_translations` MODIFY COLUMN `gender` VARCHAR(50) DEFAULT NULL");
+            $this->db->query("UPDATE `products_translations` SET `gender` = NULL WHERE `gender` = '0' OR `gender` = ''");
+        }
     }
 
     public function deleteProduct($id)
@@ -77,12 +94,16 @@ class Products_model extends CI_Model
 
     public function getOneProduct($id)
     {
-        $this->db->select('vendors.name as vendor_name, vendors.id as vendor_id, products.*, 
+        $this->db->select('vendors.name as vendor_name, vendors.id as vendor_id, products.*,
         products_translations.price,
         products_translations.size_range,
         products_translations.msp,
         products_translations.wsp,
-        products_translations.color');
+        products_translations.color,
+        products_translations.season,
+        products_translations.gender,
+        products_translations.fabric,
+        products_translations.brand');
         $this->db->where('products.id', $id);
         $this->db->join('vendors', 'vendors.id = products.vendor_id', 'left');
         $this->db->join('products_translations', 'products_translations.for_id = products.id', 'inner');
@@ -172,29 +193,54 @@ class Products_model extends CI_Model
         return $id;
     }
 
-    public function saveVariations($product_id, $colors, $sizes)
+    public function saveVariations($product_id, $colors, $sizes, $swatches = [], $hexes = [])
     {
         $this->db->query("CREATE TABLE IF NOT EXISTS `product_variations` (
             `id` int NOT NULL AUTO_INCREMENT,
             `product_id` int NOT NULL,
             `color` varchar(100) DEFAULT NULL,
             `sizes` varchar(500) DEFAULT NULL,
+            `swatch` varchar(200) DEFAULT NULL,
+            `hex` varchar(20) DEFAULT NULL,
             PRIMARY KEY (`id`),
             KEY `product_id` (`product_id`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3");
+
+        if (!$this->db->field_exists('swatch', 'product_variations')) {
+            $this->db->query("ALTER TABLE `product_variations` ADD COLUMN `swatch` varchar(200) DEFAULT NULL");
+        }
+        if (!$this->db->field_exists('hex', 'product_variations')) {
+            $this->db->query("ALTER TABLE `product_variations` ADD COLUMN `hex` varchar(20) DEFAULT NULL");
+        }
+
+        // Preserve existing swatches for rows that don't have a new upload
+        $existing = [];
+        $rows = $this->db->where('product_id', $product_id)->get('product_variations')->result_array();
+        foreach ($rows as $r) {
+            $existing[] = $r['swatch'];
+        }
 
         $this->db->where('product_id', $product_id)->delete('product_variations');
 
         foreach ($colors as $i => $color) {
             $color = trim($color);
             $size  = isset($sizes[$i]) ? trim($sizes[$i]) : '';
-            if ($color === '' && $size === '') {
+            $hex   = isset($hexes[$i]) ? trim($hexes[$i]) : '';
+            if ($color === '' && $size === '' && empty($swatches[$i])) {
                 continue;
+            }
+            $swatch = '';
+            if (!empty($swatches[$i])) {
+                $swatch = trim($swatches[$i]);
+            } elseif (isset($existing[$i]) && $existing[$i] !== '') {
+                $swatch = $existing[$i];
             }
             $this->db->insert('product_variations', [
                 'product_id' => $product_id,
                 'color'      => $color,
                 'sizes'      => $size,
+                'swatch'     => $swatch,
+                'hex'        => $hex,
             ]);
         }
     }
@@ -203,6 +249,12 @@ class Products_model extends CI_Model
     {
         if (!$this->db->table_exists('product_variations')) {
             return [];
+        }
+        if (!$this->db->field_exists('swatch', 'product_variations')) {
+            $this->db->query("ALTER TABLE `product_variations` ADD COLUMN `swatch` varchar(200) DEFAULT NULL");
+        }
+        if (!$this->db->field_exists('hex', 'product_variations')) {
+            $this->db->query("ALTER TABLE `product_variations` ADD COLUMN `hex` varchar(20) DEFAULT NULL");
         }
         return $this->db->where('product_id', $product_id)
                         ->get('product_variations')
@@ -236,8 +288,12 @@ class Products_model extends CI_Model
                 'msp' => $post['msp'][$i],
                 'wsp' => $post['wsp'][$i],
                 'old_price' => $post['old_price'][$i],
-                'color' => $post['color'],
-                'size_range' => $post['size_range'],
+                'color' => isset($post['color']) ? $post['color'] : '',
+                'size_range' => isset($post['size_range']) ? $post['size_range'] : '',
+                'season' => isset($post['season']) ? $post['season'] : '',
+                'gender' => isset($post['gender']) ? $post['gender'] : '',
+                'fabric' => isset($post['fabric']) ? $post['fabric'] : '',
+                'brand' => isset($post['brand']) ? $post['brand'] : '',
                 'abbr' => $abbr,
                 'for_id' => $id
             );

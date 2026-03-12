@@ -125,10 +125,14 @@
                             if ($i == 100) { return false; }
                         ?></td>
                         <td>
+                            <?php if ($user->status == '2'): ?>
                             <div class="btn-group btn-group-sm" role="group">
                                 <button type="button" class="btn btn-success" onclick="document.getElementById('approve_uid').value=<?= (int)$user->id; ?>;document.getElementById('approve_pcent').value='';document.getElementById('approve_remark').value='';document.getElementById('approve_role').value='1';document.getElementById('approve_userlist_wrap').style.display='none';jQuery('#approveModal').modal('show');">Approve</button>
                                 <button type="button" class="btn btn-danger" onclick="if(confirm('Reject this user?')){jQuery.post('<?= base_url('admin/reject'); ?>',{id:<?= (int)$user->id; ?>},function(){location.reload();});}">Reject</button>
                             </div>
+                            <?php else: ?>
+                            &mdash;
+                            <?php endif; ?>
                         </td>
                         <td><?= !empty($user->last_login) ? date('d.m.Y - H:i:s', $user->last_login) : '-'; ?></td>
                         <td class="text-center">

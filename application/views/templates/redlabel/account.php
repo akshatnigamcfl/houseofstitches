@@ -4,7 +4,7 @@
 <meta name="keywords"
     content="wholesale kidswear shop, bulk kids clothing India, wholesale children’s fashion, kidswear supplier India, wholesale boys & girls wear, bulk order kids clothes, kidswear wholesale online, wholesale kids clothing distributor, House of Stitches shop, kidswear wholesale supplier">
 <script>
-    const USER_ROLE = "agent"; // retailer, wholesaler, agent, distributor
+    const USER_ROLE = "<?= htmlspecialchars($user_role) ?>"; // set from DB: agent, distributor, wholesaler, retailer
 </script>
 
 <div class="account_page">
@@ -28,17 +28,17 @@
                         data-bs-target="#account" type="button" role="tab" aria-controls="account"
                         aria-selected="true"><i class="bi bi-house-door me-2"></i></i>Home</a>
                 </li>
-                <li class="nav-item role-agent" role="presentation">
+                <li class="nav-item role-all" role="presentation">
                     <a class="nav-link position-relative" id="clients-tab" data-bs-toggle="pill"
                         data-bs-target="#clients" type="button" role="tab" aria-controls="clients"
                         aria-selected="true"><i class="bi bi-people-fill me-2"></i></i>My Clients</a>
                 </li>
-                <li class="nav-item role-wholesaler role-retailer role-distributor" role="presentation">
+                <li class="nav-item role-all" role="presentation">
                     <a class="nav-link position-relative" id="myorders-tab" data-bs-toggle="pill" data-bs-target="#myorders"
                         type="button" role="tab" aria-controls="myorders" aria-selected="false"><i
                             class="bi bi-receipt me-2"></i>My Orders</a>
                 </li>
-                <li class="nav-item role-agent role-distributor" role="presentation">
+                <li class="nav-item role-all" role="presentation">
                     <a class="nav-link position-relative" id="retailerorders-tab" data-bs-toggle="pill" data-bs-target="#retailerorders"
                         type="button" role="tab" aria-controls="retailerorders" aria-selected="false"><i
                             class="bi bi-shop me-2"></i>Retailer Orders</a>
@@ -48,17 +48,17 @@
                         type="button" role="tab" aria-controls="track" aria-selected="false"><i
                             class="bi bi-truck me-2"></i>Tracking</a>
                 </li>
-                <li class="nav-item role-agent" role="presentation">
+                <li class="nav-item role-all" role="presentation">
                     <a class="nav-link position-relative" id="commission-tab" data-bs-toggle="pill" data-bs-target="#commission"
                         type="button" role="tab" aria-controls="commission" aria-selected="false"><i
                             class="bi bi-currency-rupee me-2"></i>Commission</a>
                 </li>
-                <li class="nav-item role-agent role-retailer role-distributor role-wholesaler" role="presentation">
+                <li class="nav-item role-all" role="presentation">
                     <a class="nav-link position-relative" id="ledger-tab" data-bs-toggle="pill" data-bs-target="#ledger"
                         type="button" role="tab" aria-controls="ledger" aria-selected="false"><i
                             class="bi bi-person-lines-fill me-2"></i>Ledger</a>
                 </li>
-                <li class="nav-item role-agent role-distributor" role="presentation">
+                <li class="nav-item role-all" role="presentation">
                     <a class="nav-link position-relative" id="claim-tab" data-bs-toggle="pill" data-bs-target="#claim"
                         type="button" role="tab" aria-controls="claim" aria-selected="false"><i
                             class="bi bi-file-earmark-check me-2"></i>Claim</a>
@@ -356,25 +356,25 @@
                         <div class="col-md-3">
                             <div class="border rounded-4 p-4 h-100">
                                 <p class="text-muted m-0">Total Orders</p>
-                                <h4>56</h4>
+                                <h4><?= $my_stats['total'] ?></h4>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="border rounded-4 p-4 h-100">
                                 <p class="text-muted m-0">Pending Orders</p>
-                                <h4>18</h4>
+                                <h4><?= $my_stats['pending'] ?></h4>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="border rounded-4 p-4 h-100">
                                 <p class="text-muted m-0">Shipped</p>
-                                <h4>24</h4>
+                                <h4><?= $my_stats['shipped'] ?></h4>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="border rounded-4 p-4 h-100">
                                 <p class="text-muted m-0">Delivered</p>
-                                <h4>14</h4>
+                                <h4><?= $my_stats['delivered'] ?></h4>
                             </div>
                         </div>
                     </div>
@@ -439,32 +439,45 @@
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <tr>
-                                                <td>#ORD-3201</td>
-                                                <td>Global Traders</td>
-                                                <td>120 Units</td>
-                                                <td>₹ 3,50,000</td>
-                                                <td>10 Feb 2026</td>
-                                                <td>18 Feb 2026</td>
-                                                <td><span class="badge bg-warning rounded-pill">Pending</span></td>
-                                                <td>
-                                                    <button class="btn btn-sm btn-outline-secondary">View</button>
-                                                    <button class="btn btn-sm btn-dark">Track</button>
+                                            <?php if (!empty($my_orders)): ?>
+                                            <?php foreach ($my_orders as $mo):
+                                                $mo_products = @unserialize($mo['products']);
+                                                $mo_items = is_array($mo_products) ? count($mo_products) : 0;
+                                                $mo_status_map = [0 => ['label'=>'Pending','class'=>'bg-warning text-dark'], 1 => ['label'=>'Shipped','class'=>'bg-info'], 2 => ['label'=>'Delivered','class'=>'bg-success']];
+                                                $mo_st = $mo_status_map[$mo['processed']] ?? ['label'=>'Unknown','class'=>'bg-secondary'];
+                                                $mo_row_id = 'ord-items-' . (int)$mo['order_id'];
+                                            ?>
+                                            <tr data-bs-toggle="collapse" data-bs-target="#<?= $mo_row_id ?>" style="cursor:pointer;">
+                                                <td>#<?= (int)$mo['order_id'] ?></td>
+                                                <td>House of Stitches</td>
+                                                <td><?= $mo_items ?> item<?= $mo_items != 1 ? 's' : '' ?></td>
+                                                <td>—</td>
+                                                <td><?= date('d M Y', $mo['date']) ?></td>
+                                                <td>—</td>
+                                                <td><span class="badge rounded-pill <?= $mo_st['class'] ?>"><?= $mo_st['label'] ?></span></td>
+                                                <td><i class="bi bi-chevron-down"></i></td>
+                                            </tr>
+                                            <tr class="collapse" id="<?= $mo_row_id ?>">
+                                                <td colspan="8" class="p-0">
+                                                    <table class="table table-sm mb-0 bg-light">
+                                                        <thead><tr><th class="ps-4">Product</th><th>Color</th><th>Size</th><th>Qty</th></tr></thead>
+                                                        <tbody>
+                                                        <?php if (is_array($mo_products)): foreach ($mo_products as $mp): $pi = $mp['product_info'] ?? []; ?>
+                                                        <tr>
+                                                            <td class="ps-4"><?= htmlspecialchars($pi['title'] ?? ($pi['id'] ?? '—')) ?></td>
+                                                            <td><?= htmlspecialchars($pi['color'] ?? '—') ?></td>
+                                                            <td><?= htmlspecialchars($pi['size_range'] ?? '—') ?></td>
+                                                            <td><?= (int)($mp['product_quantity'] ?? 0) ?></td>
+                                                        </tr>
+                                                        <?php endforeach; endif; ?>
+                                                        </tbody>
+                                                    </table>
                                                 </td>
                                             </tr>
-                                            <tr>
-                                                <td>#ORD-3202</td>
-                                                <td>Sharma Enterprises</td>
-                                                <td>60 Units</td>
-                                                <td>₹ 1,20,000</td>
-                                                <td>05 Feb 2026</td>
-                                                <td>15 Feb 2026</td>
-                                                <td><span class="badge bg-info rounded-pill">Shipped</span></td>
-                                                <td>
-                                                    <button class="btn btn-sm btn-outline-secondary">View</button>
-                                                    <button class="btn btn-sm btn-success">Track</button>
-                                                </td>
-                                            </tr>
+                                            <?php endforeach; ?>
+                                            <?php else: ?>
+                                            <tr><td colspan="8" class="text-center text-muted">No orders placed yet.</td></tr>
+                                            <?php endif; ?>
                                         </tbody>
                                     </table>
                                 </div>
@@ -486,22 +499,23 @@
                                             </tr>
                                         </thead>
                                         <tbody>
+                                            <?php if (!empty($my_orders)): ?>
+                                            <?php foreach ($my_orders as $mo):
+                                                $mo_status_map = [0 => ['label'=>'Pending','class'=>'bg-warning text-dark'], 1 => ['label'=>'Shipped','class'=>'bg-info'], 2 => ['label'=>'Delivered','class'=>'bg-success']];
+                                                $mo_st = $mo_status_map[$mo['processed']] ?? ['label'=>'Unknown','class'=>'bg-secondary'];
+                                            ?>
                                             <tr>
-                                                <td>25 Jan 2026</td>
-                                                <td>#ORD-3190</td>
-                                                <td>AMRUN Business</td>
-                                                <td>₹ 95,000</td>
+                                                <td><?= date('d M Y', $mo['date']) ?></td>
+                                                <td>#<?= (int)$mo['order_id'] ?></td>
+                                                <td>House of Stitches</td>
+                                                <td>—</td>
                                                 <td><button class="btn btn-sm btn-outline-dark">Download</button></td>
-                                                <td><span class="badge rounded-pill bg-success">Delivered</span></td>
+                                                <td><span class="badge rounded-pill <?= $mo_st['class'] ?>"><?= $mo_st['label'] ?></span></td>
                                             </tr>
-                                            <tr>
-                                                <td>15 Jan 2026</td>
-                                                <td>#ORD-3175</td>
-                                                <td>Elite Solutions</td>
-                                                <td>₹ 1,45,000</td>
-                                                <td><button class="btn btn-sm btn-outline-dark">Download</button></td>
-                                                <td><span class="badge rounded-pill bg-success">Delivered</span></td>
-                                            </tr>
+                                            <?php endforeach; ?>
+                                            <?php else: ?>
+                                            <tr><td colspan="6" class="text-center text-muted">No order history found.</td></tr>
+                                            <?php endif; ?>
                                         </tbody>
                                     </table>
                                 </div>
@@ -516,9 +530,9 @@
                                             <label class="form-label">Order Id *</label>
                                             <select class="form-select">
                                                 <option selected disabled>Select Order</option>
-                                                <option>ORD-1001</option>
-                                                <option>ORD-1002</option>
-                                                <option>ORD-1003</option>
+                                                <?php foreach ($my_orders as $mo): ?>
+                                                <option value="<?= (int)$mo['order_id'] ?>">#<?= (int)$mo['order_id'] ?></option>
+                                                <?php endforeach; ?>
                                             </select>
                                         </div>
                                         <div class="col-md-4">
@@ -608,25 +622,25 @@
                         <div class="col-md-3">
                             <div class="border rounded-4 p-4 h-100">
                                 <p class="text-muted m-0">Total Retailer Orders</p>
-                                <h4>42</h4>
+                                <h4><?= $retailer_stats['total'] ?></h4>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="border rounded-4 p-4 h-100">
                                 <p class="text-muted m-0">Pending Orders</p>
-                                <h4>15</h4>
+                                <h4><?= $retailer_stats['pending'] ?></h4>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="border rounded-4 p-4 h-100">
                                 <p class="text-muted m-0">Shipped Orders</p>
-                                <h4>18</h4>
+                                <h4><?= $retailer_stats['shipped'] ?></h4>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="border rounded-4 p-4 h-100">
                                 <p class="text-muted m-0">Delivered Orders</p>
-                                <h4>9</h4>
+                                <h4><?= $retailer_stats['delivered'] ?></h4>
                             </div>
                         </div>
                     </div>
@@ -661,9 +675,9 @@
                                             <label class="form-label">Retailer</label>
                                             <select class="form-select">
                                                 <option selected>All Retailers</option>
-                                                <option>Retailer One</option>
-                                                <option>Retailer Two</option>
-                                                <option>Retailer Three</option>
+                                                <?php foreach ($clients as $client): ?>
+                                                <option value="<?= (int)$client->id ?>"><?= htmlspecialchars($client->name) ?></option>
+                                                <?php endforeach; ?>
                                             </select>
                                         </div>
                                         <div class="col-md-3">
@@ -692,32 +706,29 @@
                                             </tr>
                                         </thead>
                                         <tbody>
+                                            <?php if (!empty($retailer_orders)): ?>
+                                            <?php foreach ($retailer_orders as $ro):
+                                                $ro_products = @unserialize($ro['products']);
+                                                $ro_items = is_array($ro_products) ? count($ro_products) : 0;
+                                                $ro_status_map = [0 => ['label'=>'Pending','class'=>'bg-warning text-dark'], 1 => ['label'=>'Shipped','class'=>'bg-info'], 2 => ['label'=>'Delivered','class'=>'bg-success']];
+                                                $ro_st = $ro_status_map[$ro['processed']] ?? ['label'=>'Unknown','class'=>'bg-secondary'];
+                                            ?>
                                             <tr>
-                                                <td>#ORD-4001</td>
-                                                <td>Retailer One</td>
-                                                <td>50 Units</td>
-                                                <td>₹ 1,50,000</td>
-                                                <td>10 Feb 2026</td>
-                                                <td>18 Feb 2026</td>
-                                                <td><span class="badge bg-warning rounded-pill">Pending</span></td>
+                                                <td>#<?= (int)$ro['order_id'] ?></td>
+                                                <td><?= htmlspecialchars($ro['retailer_name'] ?? '—') ?></td>
+                                                <td><?= $ro_items ?> item<?= $ro_items != 1 ? 's' : '' ?></td>
+                                                <td>—</td>
+                                                <td><?= date('d M Y', $ro['date']) ?></td>
+                                                <td>—</td>
+                                                <td><span class="badge rounded-pill <?= $ro_st['class'] ?>"><?= $ro_st['label'] ?></span></td>
                                                 <td>
                                                     <button class="btn btn-sm btn-outline-secondary">View</button>
-                                                    <button class="btn btn-sm btn-dark">Track</button>
                                                 </td>
                                             </tr>
-                                            <tr>
-                                                <td>#ORD-4002</td>
-                                                <td>Retailer Two</td>
-                                                <td>30 Units</td>
-                                                <td>₹ 90,000</td>
-                                                <td>05 Feb 2026</td>
-                                                <td>15 Feb 2026</td>
-                                                <td><span class="badge bg-info rounded-pill">Shipped</span></td>
-                                                <td>
-                                                    <button class="btn btn-sm btn-outline-secondary">View</button>
-                                                    <button class="btn btn-sm btn-success">Track</button>
-                                                </td>
-                                            </tr>
+                                            <?php endforeach; ?>
+                                            <?php else: ?>
+                                            <tr><td colspan="8" class="text-center text-muted">No retailer orders found.</td></tr>
+                                            <?php endif; ?>
                                         </tbody>
                                     </table>
                                 </div>
@@ -739,22 +750,23 @@
                                             </tr>
                                         </thead>
                                         <tbody>
+                                            <?php if (!empty($retailer_orders)): ?>
+                                            <?php foreach ($retailer_orders as $ro):
+                                                $ro_status_map = [0 => ['label'=>'Pending','class'=>'bg-warning text-dark'], 1 => ['label'=>'Shipped','class'=>'bg-info'], 2 => ['label'=>'Delivered','class'=>'bg-success']];
+                                                $ro_st = $ro_status_map[$ro['processed']] ?? ['label'=>'Unknown','class'=>'bg-secondary'];
+                                            ?>
                                             <tr>
-                                                <td>25 Jan 2026</td>
-                                                <td>#ORD-3990</td>
-                                                <td>Retailer Three</td>
-                                                <td>₹ 95,000</td>
+                                                <td><?= date('d M Y', $ro['date']) ?></td>
+                                                <td>#<?= (int)$ro['order_id'] ?></td>
+                                                <td><?= htmlspecialchars($ro['retailer_name'] ?? '—') ?></td>
+                                                <td>—</td>
                                                 <td><button class="btn btn-sm btn-outline-dark">Download</button></td>
-                                                <td><span class="badge rounded-pill bg-success">Delivered</span></td>
+                                                <td><span class="badge rounded-pill <?= $ro_st['class'] ?>"><?= $ro_st['label'] ?></span></td>
                                             </tr>
-                                            <tr>
-                                                <td>15 Jan 2026</td>
-                                                <td>#ORD-3975</td>
-                                                <td>Retailer Two</td>
-                                                <td>₹ 1,45,000</td>
-                                                <td><button class="btn btn-sm btn-outline-dark">Download</button></td>
-                                                <td><span class="badge rounded-pill bg-success">Delivered</span></td>
-                                            </tr>
+                                            <?php endforeach; ?>
+                                            <?php else: ?>
+                                            <tr><td colspan="6" class="text-center text-muted">No order history found.</td></tr>
+                                            <?php endif; ?>
                                         </tbody>
                                     </table>
                                 </div>
@@ -769,9 +781,9 @@
                                             <label class="form-label">Order Id *</label>
                                             <select class="form-select">
                                                 <option selected disabled>Select Order</option>
-                                                <option>ORD-4001</option>
-                                                <option>ORD-4002</option>
-                                                <option>ORD-4003</option>
+                                                <?php foreach ($retailer_orders as $ro): ?>
+                                                <option value="<?= (int)$ro['order_id'] ?>">#<?= (int)$ro['order_id'] ?> — <?= htmlspecialchars($ro['retailer_name'] ?? '') ?></option>
+                                                <?php endforeach; ?>
                                             </select>
                                         </div>
                                         <div class="col-md-4">
@@ -1926,29 +1938,7 @@ document.getElementById('saveSettingsBtn').addEventListener('click', function ()
 </script>
 
 <script>
-(function () {
-    function activateTab(hash) {
-        var link = document.querySelector('#pills-tab .nav-link[data-bs-target="' + hash + '"]');
-        if (!link) return;
-
-        // Deactivate all tabs and panes
-        document.querySelectorAll('#pills-tab .nav-link').forEach(function (el) {
-            el.classList.remove('active');
-            el.setAttribute('aria-selected', 'false');
-        });
-        document.querySelectorAll('.tab-content .tab-pane').forEach(function (el) {
-            el.classList.remove('show', 'active');
-        });
-
-        // Activate the target
-        link.classList.add('active');
-        link.setAttribute('aria-selected', 'true');
-        var pane = document.querySelector(hash);
-        if (pane) {
-            pane.classList.add('show', 'active');
-        }
-    }
-
+document.addEventListener('DOMContentLoaded', function () {
     // Update hash on tab click
     document.querySelectorAll('#pills-tab .nav-link').forEach(function (link) {
         link.addEventListener('click', function () {
@@ -1957,9 +1947,13 @@ document.getElementById('saveSettingsBtn').addEventListener('click', function ()
         });
     });
 
-    // Restore tab on page load
-    if (window.location.hash) {
-        activateTab(window.location.hash);
+    // Activate tab from URL hash using Bootstrap Tab API
+    var hash = window.location.hash;
+    if (hash) {
+        var link = document.querySelector('#pills-tab .nav-link[data-bs-target="' + hash + '"]');
+        if (link) {
+            bootstrap.Tab.getOrCreateInstance(link).show();
+        }
     }
-})();
+});
 </script>

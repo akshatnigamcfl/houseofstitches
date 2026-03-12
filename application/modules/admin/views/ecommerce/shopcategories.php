@@ -51,7 +51,7 @@
                     ?>
                     <tr>
                         <td><?= $key_cat ?></td>
-                        <td><?= htmlspecialchars($catName, ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= $catName ?></td>
                         <td> 
                             <a href="javascript:void(0);" class="editCategorieSub" data-sub-for-id="<?= $key_cat ?>">
                                 <i class="fa fa-pencil" aria-hidden="true"></i>

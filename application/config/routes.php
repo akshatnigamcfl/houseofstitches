@@ -62,6 +62,7 @@ $route['(\w{2})?/?checkout/paypalpayment'] = 'checkout/paypalPayment';
 $route['(\w{2})?/?checkout/order-error'] = 'checkout/orderError';
 
 // Ajax called. Functions for managing shopping cart
+$route['ajax_cart_filter'] = 'home/ajax_cart_filter';
 $route['(\w{2})?/?manageShoppingCart'] = 'home/manageShoppingCart';
 $route['(\w{2})?/?clearShoppingCart'] = 'home/clearShoppingCart';
 $route['(\w{2})?/?discountCodeChecker'] = 'home/discountCodeChecker';
@@ -199,6 +200,11 @@ $route['admin/brands'] = "admin/ecommerce/brands";
 $route['admin/changePosition'] = "admin/ecommerce/ShopCategories/changePosition";
 $route['admin/discounts'] = "admin/ecommerce/discounts";
 $route['admin/discounts/(:num)'] = "admin/ecommerce/discounts/index/$1";
+$route['admin/homesections'] = "admin/ecommerce/HomeSections";
+$route['admin/homesections/search_products'] = "admin/ecommerce/HomeSections/search_products";
+$route['admin/homesections/add_product'] = "admin/ecommerce/HomeSections/add_product";
+$route['admin/homesections/remove_product'] = "admin/ecommerce/HomeSections/remove_product";
+$route['admin/homesections/update_limit'] = "admin/ecommerce/HomeSections/update_limit";
 // BLOG GROUP
 $route['admin/blogpublish'] = "admin/blog/BlogPublish";
 $route['admin/blogpublish/(:num)'] = "admin/blog/BlogPublish/index/$1";
@@ -232,6 +238,7 @@ $route['admin/logout'] = "admin/home/home/logout";
 $route['admin/changePass'] = "admin/home/home/changePass";
 $route['admin/uploadOthersImages'] = "admin/ecommerce/publish/do_upload_others_images";
 $route['admin/loadOthersImages'] = "admin/ecommerce/publish/loadOthersImages";
+$route['admin/uploadSwatch'] = "admin/ecommerce/publish/upload_swatch";
 // VENDORS
 $route['admin/listvendors'] = "admin/vendors/listvendors";
 

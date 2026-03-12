@@ -18,7 +18,21 @@
                         </ul>
                     </div>
                 </div>
-                <div class="col-md-4 col-sm-6 order-sm-4 order-2 col-12">
+                <div class="col-md-3 col-sm-6 col-12 order-2">
+                    <div class="footer_menus">
+                        <p class="title">Help & Support</p>
+                        <ul class="list-unstyled">
+                            <li><a class="nav-links" href="<?php echo base_url('page/terms-conditions'); ?>">Terms & Conditions</a></li>
+                            <li><a class="nav-links" href="<?php echo base_url('page/privacy-policy'); ?>">Privacy Policy</a></li>
+                            <li><a class="nav-links" href="<?php echo base_url('page/track-order'); ?>">Track Order</a></li>
+                            <li><a class="nav-links" href="<?php echo base_url('page/returns-exchange'); ?>">Returns & Exchanges</a></li>
+                            <li><a class="nav-links" href="<?php echo base_url('page/shipping'); ?>">Shipping Information</a></li>
+                            <li><a class="nav-links" href="<?php echo base_url('page/payment-method'); ?>">Payment Methods</a></li>
+                            <li><a class="nav-links" href="<?php echo base_url('page/gift-cards'); ?>">Gift Cards</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6 order-sm-4 order-3 col-12">
                     <div class="footer_menus">
                         <p class="title">Location</p>
                         <p>110, Readymade complex Indore, Indore,Madhya Pradesh, 452003</p>
@@ -32,7 +46,6 @@
                         </ul>
                     </div>
                 </div>
-                <div class="col-md-2 d-md-block d-none order-3"></div>
                 <div class="col-md-3 col-sm-6 order-sm-2 order-4 col-12">
                     <div class="footer_menus">
                         <p class="title">Contact Us</p>

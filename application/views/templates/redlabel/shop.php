@@ -22,245 +22,93 @@
           <div class="top-shop-sidebar">
             <p class="wg-title gfamily">SHOP BY</p>
           </div>
+          <?php
+          // Active filter state from GET (for initial page load pre-selection)
+          $active_cats    = array_filter(array_map('intval', explode(',', $_GET['category'] ?? '')));
+          $active_seasons = array_map('strtolower', array_filter(array_map('trim', explode(',', $_GET['season'] ?? ''))));
+          $active_genders = strtolower(trim($_GET['gender'] ?? ''));
+          $active_sizes   = array_filter(array_map('trim', explode(',', $_GET['search_in_size'] ?? '')));
+          ?>
+
           <div class="shop-one">
             <p class="filter-title">Gender</p>
-            <ul class="product_categories filter_height" id="fill">
-              <li class="go-gender" data-gender="girls">
+            <ul class="product_categories filter_height">
+              <?php foreach (['Girls','Boys','Infant','Unisex'] as $gen): ?>
+              <li class="go-gender" data-gender="<?= $gen ?>">
                 <label class="filter-radio">
-                  <input type="checkbox" name="gender_filter">
+                  <input type="checkbox" class="go-gender-cb" name="gender_filter"
+                    value="<?= $gen ?>"
+                    <?= (strtolower($gen) === $active_genders) ? 'checked' : '' ?>>
                   <span class="check-box"></span>
-                  <span class="check-label">Girls</span>
-                  <span class="count">(24)</span>
+                  <span class="check-label"><?= $gen ?></span>
                 </label>
               </li>
-              <li class="go-gender" data-gender="boys">
-                <label class="filter-radio">
-                  <input type="checkbox" name="gender_filter">
-                  <span class="check-box"></span>
-                  <span class="check-label">Boys</span>
-                  <span class="count">(18)</span>
-                </label>
-              </li>
-              <li class="go-gender" data-gender="infant">
-                <label class="filter-radio">
-                  <input type="checkbox" name="gender_filter">
-                  <span class="check-box"></span>
-                  <span class="check-label">Infant</span>
-                  <span class="count">(12)</span>
-                </label>
-              </li>
+              <?php endforeach; ?>
             </ul>
           </div>
-          <?php
-          $season  = !empty($_GET['season']) ? $_GET['season'] : '';
-          if (strpos($season, ',') !== false) {
-            $seasons_array = explode(',', $season);
-            $checked = ($seasons_array['0'] == 'summer') ? 'checked' : '';
-            $checked1 = ($seasons_array['1'] == 'winter') ? 'checked' : '';
-          } else {
-            $checked = ($season == 'summer') ? 'checked' : '';
-            $checked1 = ($season == 'winter') ? 'checked' : '';
-          }
-          ?>
+
+          <?php if (!empty($filter_seasons)): ?>
           <div class="shop-one">
             <p class="filter-title">Season</p>
-            <ul class="product_categories filter_height" id="fill">
-              <li class="go-season1" data-season="summer">
+            <ul class="product_categories filter_height">
+              <?php foreach ($filter_seasons as $ssn): ?>
+              <li>
                 <label class="filter-radio">
-                  <input type="checkbox" class="go-season" <?= $checked; ?> name="season_filter" value="summer">
+                  <input type="checkbox" class="go-season" name="season_filter"
+                    value="<?= htmlspecialchars($ssn) ?>"
+                    <?= in_array(strtolower($ssn), $active_seasons) ? 'checked' : '' ?>>
                   <span class="check-box"></span>
-                  <span class="check-label">Summer</span>
-                  <span class="count">(20)</span>
+                  <span class="check-label"><?= htmlspecialchars(ucwords(strtolower($ssn))) ?></span>
                 </label>
               </li>
-              <li class="go-season1" data-season="winter">
-                <label class="filter-radio">
-                  <input type="checkbox" class="go-season" <?= $checked1; ?> name="season_filter" value="winter">
-                  <span class="check-box"></span>
-                  <span class="check-label">Winter</span>
-                  <span class="count">(8)</span>
-                </label>
-              </li>
+              <?php endforeach; ?>
             </ul>
           </div>
+          <?php endif; ?>
+
+          <?php if (!empty($all_categories)): ?>
           <div class="shop-one">
             <p class="filter-title">Categories</p>
-            <?php
-            if (!empty($_GET['category'])) {
-              $cat = ($_GET['category']) ? $_GET['category'] : '';
-              if ($cat == 't-shirt') {
-                $chk = 'checked';
-              } elseif ($cat == 'dungree-set') {
-                $chk1 = 'checked';
-              } elseif ($cat == '3pcs-baba-suit') {
-                $chk4 = 'checked';
-              } elseif ($cat == 'bottom') {
-                $chk5 = 'checked';
-              } elseif ($cat == 'shirt') {
-                $chk6 = 'checked';
-              }
-            }
-            $categories = !empty($_GET['category']) ? $_GET['category'] : '';
-            $categories = explode(',', $categories);
-            if (is_array($categories)) {
-              $checkedbox1 = (in_array('set', $categories)) ? 'checked' : '';
-              $checkedbox_2 = (in_array('t-shirt', $categories)) ? 'checked' : '';
-              $checkedbox_3 = (in_array('bottom', $categories)) ? 'checked' : '';
-              $checkedbox_4 = (in_array('3pcs-baba-suit', $categories)) ? 'checked' : '';
-              $checkedbox_5 = (in_array('shirt', $categories)) ? 'checked' : '';
-            } else {
-              $checkedbox1 = ($categories == 'set') ? 'checked' : '';
-              $checkedbox_2 = ($categories == 't-shirt') ? 'checked' : '';
-              $checkedbox_3 = ($categories == 'bottom') ? 'checked' : '';
-              $checkedbox_4 = ($categories == '3pcs-baba-suit') ? 'checked' : '';
-              $checkedbox_5 = ($categories == 'shirt') ? 'checked' : '';
-            }
-            ?>
             <ul class="product_categories filter_height">
-              <li class="go-category1" data-category="set">
+              <?php foreach ($all_categories as $cat): ?>
+              <li class="go-category" data-category="<?= (int)$cat['id'] ?>">
                 <label class="filter-radio">
-                  <input type="checkbox" <?php echo $checkedbox1; ?> value="set" class="go-category" name="category_filter">
+                  <input type="checkbox" class="go-category" name="category_filter"
+                    value="<?= (int)$cat['id'] ?>"
+                    <?= in_array((int)$cat['id'], $active_cats) ? 'checked' : '' ?>>
                   <span class="check-box"></span>
-                  <span class="check-label">Dungree Set</span>
+                  <span class="check-label"><?= htmlspecialchars($cat['name']) ?></span>
                 </label>
               </li>
-              <li class="go-category" data-category="t-shirt">
-                <label class="filter-radio">
-                  <input type="checkbox" <?php echo $checkedbox_2; ?> value="t-shirt" class="go-category" name="category_filter">
-                  <span class="check-box"></span>
-                  <span class="check-label">T-Shirt</span>
-                </label>
-              </li>
-              <li class="go-category" data-category="bottom">
-                <label class="filter-radio">
-                  <input type="checkbox" <?php echo $checkedbox_3; ?> value="bottom" class="go-category" name="category_filter">
-                  <span class="check-box"></span>
-                  <span class="check-label">Bottom</span>
-                </label>
-              </li>
-              <li class="go-category" data-category="3pcs-baba-suit">
-                <label class="filter-radio">
-                  <input type="checkbox" <?php echo $checkedbox_4; ?> value="3pcs-baba-suit" class="go-category" name="category_filter">
-                  <span class="check-box"></span>
-                  <span class="check-label">3 Pcs Baba Suit</span>
-                </label>
-              </li>
-              <li class="go-category" data-category="shirt">
-                <label class="filter-radio">
-                  <input type="checkbox" <?= $checkedbox_5; ?> value="shirt" class="go-category" name="category_filter">
-                  <span class="check-box"></span>
-                  <span class="check-label">Shirt</span>
-                </label>
-              </li>
+              <?php endforeach; ?>
             </ul>
           </div>
+          <?php endif; ?>
+
           <?php
-          $var = !empty($_GET['search_in_size']) ? $_GET['search_in_size'] : '';
-          if ($var == '2Y*5Y') {
-            $range1 = 'checked';
-          } elseif ($var == '06*24M') {
-            $range2 = 'checked';
-          } elseif ($var == '20*30-2*10') {
-            $range4 = 'checked';
-          } elseif ($var = '2Y*8Y') {
-            // $range5='checked';
-          } elseif ($var = '6-9*36') {
-            $range6 = 'checked';
-          } elseif ($var = '6Y*16Y') {
-            $range7 = 'checked';
-          } elseif ($var = '8-9*16') {
-            $range8 = 'checked';
-          } else {
-            $range1 = '';
-          }
-          ?>
-          <?php
-          $search_in_size = !empty($_GET['search_in_size']) ? $_GET['search_in_size'] : '';
-          $search_in_size = explode(',', $search_in_size);
-          if (is_array($categories)) {
-            $range = (in_array('06*24M', $search_in_size)) ? 'checked' : '';
-            $range1 = (in_array('20*30-2*10', $search_in_size)) ? 'checked' : '';
-            $range2 = (in_array('2Y*5Y', $search_in_size)) ? 'checked' : '';
-            $range3 = (in_array('2Y*8Y', $search_in_size)) ? 'checked' : '';
-            $range4 = (in_array('6-9*36', $search_in_size)) ? 'checked' : '';
-            $range5 = (in_array('6Y*16Y', $search_in_size)) ? 'checked' : '';
-            $range8 = (in_array('8-9*16', $search_in_size)) ? 'checked' : '';
-          }
-          ?>
+          // Dynamic size values from product_variations + products_translations
+          $dyn_sizes = isset($filter_sizes) ? $filter_sizes : [];
+          if (!empty($dyn_sizes)): ?>
           <div class="shop-one">
             <p class="filter-title">Size</p>
-            <ul class="product_categories filter_height" id="fill">
-              <li class="go-size/" data-brand-size="06*24M">
+            <ul class="product_categories filter_height">
+              <?php foreach ($dyn_sizes as $sz): ?>
+              <li>
                 <label class="filter-radio">
-                  <input type="checkbox" <?php echo $range; ?> class="go-size" value="06*24M" name="size_filter">
+                  <input type="checkbox" class="go-size" name="size_filter"
+                    value="<?= htmlspecialchars($sz) ?>"
+                    <?= in_array($sz, $active_sizes) ? 'checked' : '' ?>>
                   <span class="check-box"></span>
-                  <span class="check-label">06×24 M</span>
+                  <span class="check-label"><?= htmlspecialchars($sz) ?></span>
                 </label>
               </li>
-              <li class="go-size" data-brand-size="20*30-2*10">
-                <label class="filter-radio">
-                  <input type="checkbox" <?php echo $range1; ?> class="go-size" value="20*30-2*10" name="size_filter">
-                  <span class="check-box"></span>
-                  <span class="check-label">20×30–2×10</span>
-                </label>
-              </li>
-              <li class="go-size1" data-brand-size="2Y*5Y">
-                <label class="filter-radio">
-                  <input type="checkbox" <?php echo $range2; ?> class="go-size" value="2Y*5Y" name="size_filter">
-                  <span class="check-box"></span>
-                  <span class="check-label">2Y–5Y</span>
-                </label>
-              </li>
-              <li class="go-size1" data-brand-size="2Y*8Y">
-                <label class="filter-radio">
-                  <input type="checkbox" <?php echo $range3; ?> class="go-size" value="2Y*8Y" name="size_filter">
-                  <span class="check-box"></span>
-                  <span class="check-label">2Y–8Y</span>
-                </label>
-              </li>
-              <li class="go-size1" data-brand-size="6-9*36">
-                <label class="filter-radio">
-                  <input type="checkbox" <?= $range4; ?> class="go-size" value="6-9*36" name="size_filter">
-                  <span class="check-box"></span>
-                  <span class="check-label">6–9×36 M</span>
-                </label>
-              </li>
-              <li class="go-size1" data-brand-size="6Y*16Y">
-                <label class="filter-radio">
-                  <input type="checkbox" <?= $range5; ?> class="go-size" value="6Y*16Y" name="size_filter">
-                  <span class="check-box"></span>
-                  <span class="check-label">6Y–16Y</span>
-                </label>
-              </li>
-              <li class="go-size1" data-brand-size="8-9*16">
-                <label class="filter-radio">
-                  <input type="checkbox" <?= $range8; ?> class="go-size" value="8-9*16" name="size_filter">
-                  <span class="check-box"></span>
-                  <span class="check-label">8-9*16</span>
-                </label>
-              </li>
+              <?php endforeach; ?>
             </ul>
           </div>
+          <?php endif; ?>
+
           <div class="shop-one">
-            <p class="filter-title">Filter By</p>
-            <ul class="product_categories filter_height" id="fill">
-              <li class="go-filter" data-filter="new">
-                <label class="filter-radio">
-                  <input type="checkbox" name="filter_by">
-                  <span class="check-box"></span>
-                  <span class="check-label">New Arrival</span>
-                  <span class="count">(15)</span>
-                </label>
-              </li>
-              <li class="go-filter" data-filter="offer">
-                <label class="filter-radio">
-                  <input type="checkbox" name="filter_by">
-                  <span class="check-box"></span>
-                  <span class="check-label">Offer</span>
-                  <span class="count">(8)</span>
-                </label>
-              </li>
-            </ul>
+            <button type="button" id="clear-filters-btn" class="btn btn-sm btn-outline-secondary w-100">Clear Filters</button>
           </div>
           <!-- <div class="shop-one">
             <p class="filter-title">Our Brand</p>
@@ -606,47 +454,44 @@
                     $all_variations = isset($variations) ? $variations : [];
                     if (isset($products)) {
                       foreach ($products as $val) {  ?>
+                        <?php
+                          $prod_url = base_url($val['url'] . '_' . $val['id']);
+                          $folderPath = $_SERVER['DOCUMENT_ROOT'] . '/attachments/shop_images/';
+                          $imagePath  = $folderPath . trim($val['image']);
+                        ?>
                         <div class="col-lg-3 col-md-4 col-6">
                           <div class="tb-product-item-inner">
-                            <div class="card product-card" data-bs-toggle="modal" data-bs-target="#productModal" tabindex="0" onerror="this.onerror=null; this.src='<?php echo base_url('/attachments/shop_images/spark_logo-06.jpg'); ?>';"
-                              data-title="<?php echo $val['title']; ?>" data-brand="<?php echo $val['brand']; ?>" data-sku="BUP-AUR-DRS-WHT"
-                              data-price="<?php echo $val['wsp']; ?>" data-mrp="<?php echo $val['msp']; ?>"
-                              data-desc="<?php echo $val['description']; ?>"
-                              data-fabric="<?php echo $val['fabric']; ?>"
-                              data-id="<?php echo $val['id']; ?>" data-images='<?php echo base_url(); ?>attachments/shop_images/<?php echo $val['image']; ?>' data-colors='<?php echo htmlspecialchars($val['color'], ENT_QUOTES); ?>' data-sizes='<?php echo htmlspecialchars($val['size_range'], ENT_QUOTES); ?>'
-                              data-variations='<?php echo htmlspecialchars(json_encode(!empty($all_variations[$val['id']]) ? $all_variations[$val['id']] : []), ENT_QUOTES); ?>'>
-                              <?php
-                              $folderPath = $_SERVER['DOCUMENT_ROOT'] . '/attachments/shop_images/';
-                              $imageName = $val['image'];
-                              $imagePath = $folderPath . trim($imageName);
-                              if (is_file($imagePath)) {
-                              ?>
-                                <div class="product-img-wrapper">
-                                  <img alt="product"
-                                    src="<?php echo base_url(); ?>attachments/shop_images/<?php echo $val['image']; ?>"
-                                    style="object-fit:scale-down;"
-                                    class="w-100 img_products"
+                            <div class="card product-card border-0">
+                              <a href="<?= $prod_url ?>">
+                                <?php if (is_file($imagePath)): ?>
+                                  <div class="product-img-wrapper">
+                                    <img alt="<?= htmlspecialchars($val['title']) ?>"
+                                      src="<?= base_url('attachments/shop_images/' . $val['image']) ?>"
+                                      style="object-fit:scale-down;"
+                                      class="w-100 img_products"
+                                      onload="this.parentElement.classList.remove('skeleton')">
+                                    <span class="brand-badge-animated"><?= htmlspecialchars($val['brand']) ?></span>
+                                  </div>
+                                <?php else: ?>
+                                  <img alt="<?= htmlspecialchars($val['title']) ?>"
+                                    src="<?= base_url('attachments/shop_images/' . $val['image']) ?>"
+                                    onerror="this.onerror=null;this.src='<?= base_url('/attachments/shop_images/spark_logo-06.jpg') ?>';"
+                                    style="object-fit:scale-down!important;" class="w-100 img_products"
                                     onload="this.parentElement.classList.remove('skeleton')">
-                                  <span class="brand-badge-animated">
-                                    <?php echo htmlspecialchars($val['brand']); ?>
-                                  </span>
-                                </div>
-                              <?php } else { ?>
-                                <img alt="product" src="<?php echo base_url(); ?>attachments/shop_images/<?php echo $val['image']; ?>" onerror="this.onerror=null; this.src='<?php echo base_url('/attachments/shop_images/spark_logo-06.jpg'); ?>';" style="object-fit: scale-down!important;" class="w-100 img_products"
-                                  onload="this.parentElement.classList.remove('skeleton')">
-                              <?php } ?>
+                                <?php endif; ?>
+                              </a>
                             </div>
-                            <div><a href="#"><i data-product-id="<?php echo $val['id']; ?>" class="bi bi-heart wishlist-btn"></i></a></div>
+                            <div><a href="javascript:void(0);"><i data-product-id="<?= $val['id'] ?>" class="<?= in_array($val['id'], $wishlist_ids ?? []) ? 'bi bi-heart-fill text-danger' : 'bi bi-heart' ?> wishlist-btn"></i></a></div>
                             <ul class="list-unstyled tb-content">
-                              <li><a href="#"><?php echo $val['title']; ?></a></li>
-                              <li><a href="#"><?php echo $val['description']; ?></a></li>
+                              <li><a href="<?= $prod_url ?>"><?= htmlspecialchars($val['title']) ?></a></li>
+                              <li><a href="<?= $prod_url ?>" class="text-muted small"><?= htmlspecialchars(mb_strimwidth(strip_tags($val['description']), 0, 60, '...')) ?></a></li>
                               <li class="small var-chips">
                                 <?php if (!empty($all_variations[$val['id']])): ?>
                                   <?php foreach ($all_variations[$val['id']] as $v): if (trim($v['color'])): ?>
                                     <span class="var-tag-color"><?= htmlspecialchars(trim($v['color'])) ?></span>
                                   <?php endif; endforeach; ?>
                                 <?php else: ?>
-                                  <a href="#" class="text-muted"><?= htmlspecialchars($val['color']) ?></a>
+                                  <span class="text-muted"><?= htmlspecialchars($val['color']) ?></span>
                                 <?php endif; ?>
                               </li>
                               <li class="var-chips">
@@ -663,17 +508,17 @@
                                     <span class="var-tag-size"><?= htmlspecialchars($s) ?></span>
                                   <?php endforeach; ?>
                                 <?php else: ?>
-                                  <a href="#" class="text-muted"><?= htmlspecialchars($val['size_range']) ?></a>
+                                  <span class="text-muted"><?= htmlspecialchars($val['size_range']) ?></span>
                                 <?php endif; ?>
                               </li>
                               <li>
                                 <ol class="price-list">
-                                  <li>WSP <?php echo $val['wsp']; ?> /-</li>
-                                  <li>MRP <?php echo $val['msp']; ?> /-</li>
+                                  <li>WSP <?= $val['wsp'] ?> /-</li>
+                                  <li>MRP <?= $val['msp'] ?> /-</li>
                                 </ol>
                               </li>
                               <li>
-                                <a href="javascript:void(0);" data-price="<?php echo $val['wsp']; ?>" data-mrp="<?php echo $val['msp']; ?>" class="btn btn-dark w-100 rounded-pill mt-2 add-to-cart_new" data-action="add" data-id="<?php echo $val['id']; ?>">Add To Cart</a>
+                                <a href="javascript:void(0);" data-price="<?= $val['wsp'] ?>" data-mrp="<?= $val['msp'] ?>" class="btn btn-dark w-100 rounded-pill mt-2 add-to-cart_new" data-action="add" data-id="<?= $val['id'] ?>">Add To Cart</a>
                               </li>
                             </ul>
                           </div>
@@ -684,6 +529,23 @@
                   </div>
                 </div>
               </div>
+              <!-- Hidden filter state inputs -->
+              <div id="filter-state" style="display:none;">
+                <input type="hidden" name="category" id="fs_category" value="">
+                <input type="hidden" name="season" id="fs_season" value="">
+                <input type="hidden" name="gender" id="fs_gender" value="">
+                <input type="hidden" name="search_in_title" id="fs_title" value="">
+                <input type="hidden" name="search_in_brand" id="fs_brand" value="">
+                <input type="hidden" name="search_in_desc" id="fs_desc" value="">
+                <input type="hidden" name="search_in_color" id="fs_color" value="">
+                <input type="hidden" name="search_in_size" id="fs_size" value="">
+                <input type="hidden" name="order_new" id="fs_order_new" value="">
+                <input type="hidden" name="order_price" id="fs_order_price" value="">
+                <input type="hidden" name="price_from" id="fs_price_from" value="">
+                <input type="hidden" name="price_to" id="fs_price_to" value="">
+                <input type="hidden" name="brand_id" id="fs_brand_id" value="">
+              </div>
+              <div id="filter-result-count" class="text-muted small px-1 mb-1"></div>
               <div class="shop-all-tab-nor">
                 <ul class="pagination justify-content-center align-items-center gap-3 mt-3">
                   <?php if ($links_pagination != '') { ?>
@@ -1016,56 +878,6 @@
   </div>
 </div>
 
-<div class="shopprocutpopup">
-  <div class="modal fade" id="productModal" tabindex="-1">
-    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-      <div class="modal-content p-3">
-        <button class="btn-close" data-bs-dismiss="modal"></button>
-        <div class="row">
-          <div class="col-md-6 text-center">
-            <img id="mainImage" class="main-img" src="" alt="Product image">
-            <div class="d-flex justify-content-center gap-2 mt-3" id="galleryThumbs"></div>
-          </div>
-          <div class="col-md-6 descriptioncontainer" id="descriptioncontainer">
-            <h4 id="modalTitle" class="fw-bold mt-md-0 mt-3"></h4>
-            <p class="mb-1 text-muted">Brand: <span id="brandName" class="text-dark fw-semibold"></span></p>
-            <div class="mb-3">
-              MRP: <span class="text-muted" id="modalMrp"></span>
-              <strong class="ms-2">WSP: </strong><span class="fs-5 fw-bold" id="modalSale"></span>
-            </div>
-            <hr>
-            <div class="row g-2 mb-3">
-              <div class="col-6"><span class="detail-label">SKU:</span> <span class="detail-value"
-                  id="skuId"></span></div>
-              <div class="col-6"><span class="detail-label">Fabric Category:</span> <span
-                  class="detail-value" id="fabricCategory"></span></div>
-              <div class="col-6"><span class="detail-label">Category:</span> <span class="detail-value"
-                  id="category"></span></div>
-              <div class="col-6"><span class="detail-label">Fabric Type:</span> <span class="detail-value"
-                  id="fabricType"></span></div>
-              <div class="col-6"><span class="detail-label">Sub Category:</span> <span
-                  class="detail-value" id="subcategory"></span></div>
-              <div class="col-6"><span class="detail-label">Fabric:</span> <span class="detail-value"
-                  id="fabric"></span></div>
-              <div class="col-6"><span class="detail-label">Composition:</span> <span class="detail-value"
-                  id="composition"></span></div>
-            </div>
-            <p class="fw-semibold">Color: <span id="colorName"></span></p>
-            <div class="d-flex mb-2" id="colorThumbs"></div>
-            <div class="size-error fw-semibold" id="sizeError" role="alert">PLEASE SELECT A SIZE</div>
-            <p class="fw-semibold">Size <small class="text-muted">(Tap to see age breakup)</small></p>
-            <div id="sizeContainer"></div>
-            <p class="detail-label mt-3">Description</p>
-            <p class="detail-value" id="productDescription"></p>
-            <button class="cart-btn btn btn-dark" id="addToCart" aria-label="Add product to cart">
-              Add to Cart
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
 
 <style>
   .color-text-chip {
@@ -1119,18 +931,9 @@
   }
 </style>
 <script>
-  const modal = document.getElementById("productModal");
-  const mainImage = document.getElementById("mainImage");
-  const galleryThumbs = document.getElementById("galleryThumbs");
-  const colorThumbs = document.getElementById("colorThumbs");
-  const sizeContainer = document.getElementById("sizeContainer");
-  const sizeError = document.getElementById("sizeError");
-  const addToCart = document.getElementById("addToCart");
-  const colorName = document.getElementById("colorName");
-
-  let selectedColor = "", selectedSize = "", currentProductId = 0, currentProductWsp = 0, currentProductMrp = 0;
-
-  modal.addEventListener("show.bs.modal", function(e) {
+  // modal removed — products now navigate to detail page
+  if (false) { // stub to prevent reference errors
+  modal_stub_addEventListener("show.bs.modal", function(e) {
     var c = e.relatedTarget;
     if (!c) return;
 
@@ -1256,6 +1059,7 @@
       }
     };
   }
+  } // end stub
 </script>
 
 <?php
@@ -1615,10 +1419,9 @@
     });
 
     $(".order").change(function() {
-      var order_type = $(this).val();
       var order_to = $(this).data('order-to');
-      $('[name="' + order_to + '"]').val(order_type);
-      submitForm();
+      $('#fs_' + order_to).val($(this).val());
+      applyFilters();
     });
 
     // Filters Technique
@@ -1626,96 +1429,134 @@
     $('.go-category').click(function() {
       var categoryString = $('.go-category:checked').map(function() {
         return $(this).val();
-      }).get().join(','); //alert(categoryString) 
-      $('[name="category"]').val(categoryString);
-      $('#search_submit').trigger('click');
+      }).get().join(',');
+      $('#fs_category').val(categoryString);
+      applyFilters();
     });
 
     $('.go-season').click(function() {
       var seasonString = $('.go-season:checked').map(function() {
         return $(this).val();
       }).get().join(',');
-      $('[name="season"]').val(seasonString.trim());
-      $('#search_submit').trigger('click');
+      $('#fs_season').val(seasonString.trim());
+      applyFilters();
     });
 
-    $('.go-gender').click(function() {
-      var gen = $(this).data('gender');
-      $('[name="gender"]').val(gen);
-      $('#search_submit').trigger('click');
+    $('.go-gender-cb').click(function() {
+      // Only one gender at a time (radio-style)
+      var gen = $(this).val();
+      if ($(this).is(':checked')) {
+        $('.go-gender-cb').not(this).prop('checked', false);
+        $('#fs_gender').val(gen);
+      } else {
+        $('#fs_gender').val('');
+      }
+      applyFilters();
     });
     $('.go-filter').click(function() {
-      var go_filter = $(this).data('filter');
-      $('[name="go_filter"]').val(go_filter);
-      $('#search_submit').trigger('click');
+      // go_filter (new/offer) maps to order_new for now
+      applyFilters();
     });
     $('.go-brand').click(function() {
-      var brand_desc = $(this).data('brand-desc');
-      var brand = $(this).data('brand');
-      $('[name="search_in_desc"]').val(brand_desc);
-      $('[name="search_in_brand"]').val(brand);
-      $('#search_submit').trigger('click');
+      $('#fs_desc').val($(this).data('brand-desc'));
+      $('#fs_brand').val($(this).data('brand'));
+      applyFilters();
     });
     $('.go-color').click(function() {
-      var brand_color = $(this).data('brand-color'); //alert(brand_siz)
-      $('[name="search_in_color"]').val(brand_color);
-      $('#search_submit').trigger('click');
+      $('#fs_color').val($(this).data('brand-color'));
+      applyFilters();
     });
     $('.go-size').click(function() {
       var brand_siz = $('.go-size:checked').map(function() {
         return $(this).val();
       }).get().join(',');
-      $('[name="search_in_size"]').val(brand_siz);
-      $('#search_submit').trigger('click');
-      //submitForm();
+      $('#fs_size').val(brand_siz);
+      applyFilters();
     });
     $('.brand').click(function() {
-      var brand_id = $(this).data('brand-id');
-      $('[name="brand_id"]').val(brand_id);
-      submitForm()
+      $('#fs_brand_id').val($(this).data('brand-id'));
+      applyFilters();
     });
   });
 
-  $(document).ready(function() {
-    // Toggle wishlist on button click
-    $('.wishlist-btn').on('click', function(e) {
+  $(document).on('click', '#clear-filters-btn', function() {
+    $('#filter-state input').val('');
+    $('.go-category, .go-season, .go-size, .go-gender-cb').prop('checked', false);
+    applyFilters();
+  });
+
+  function applyFilters() {
+    var data = {
+      category:        $('#fs_category').val(),
+      season:          $('#fs_season').val(),
+      gender:          $('#fs_gender').val(),
+      search_in_title: $('#fs_title').val(),
+      search_in_brand: $('#fs_brand').val(),
+      search_in_desc:  $('#fs_desc').val(),
+      search_in_color: $('#fs_color').val(),
+      search_in_size:  $('#fs_size').val(),
+      order_new:       $('#fs_order_new').val(),
+      order_price:     $('#fs_order_price').val(),
+      price_from:      $('#fs_price_from').val(),
+      price_to:        $('#fs_price_to').val(),
+      brand_id:        $('#fs_brand_id').val()
+    };
+    var $catalog = $('#catalog');
+    $catalog.css('opacity', '0.5');
+    $.ajax({
+      url: '<?= base_url("ajax_cart_filter") ?>',
+      type: 'POST',
+      data: data,
+      dataType: 'json',
+      success: function(res) {
+        $catalog.css('opacity', '1');
+        if (res && res.html !== undefined) {
+          $catalog.html(res.html);
+          if (res.count !== undefined) {
+            $('#filter-result-count').text(res.count + ' product(s) found');
+          }
+          // Rebind wishlist click handlers on new cards
+          bindWishlistHandlers();
+        }
+      },
+      error: function() {
+        $catalog.css('opacity', '1');
+      }
+    });
+  }
+
+  function bindWishlistHandlers() {
+    // Use delegated event on #catalog so it works after AJAX reload
+    $('#catalog').off('click', '.wishlist-btn').on('click', '.wishlist-btn', function(e) {
       e.preventDefault();
       e.stopPropagation();
-
       var $btn = $(this);
-      var productId = $(this).attr('data-product-id');
+      var productId = $btn.attr('data-product-id');
       $.ajax({
         url: '<?= base_url("wishlist/toggle") ?>',
         type: 'POST',
-        data: {
-          product_id: productId
-        },
+        data: { product_id: productId },
         dataType: 'json',
-        success: function(response) { //alert(response.status)
+        success: function(response) {
           if (response.status === 'added') {
-            alertify.set('notifier', {
-              position: 'top-center' // ✅ Top Center
-            });
-            alertify.success('Product Added to wishlist ❤️');
+            $btn.removeClass('bi-heart').addClass('bi-heart-fill text-danger');
+            if (typeof alertify !== 'undefined') {
+              alertify.set('notifier', { position: 'top-center' });
+              alertify.success('Product Added to wishlist');
+            }
           } else if (response.status === 'removed') {
-            // Confirm dialog
-            alertify.confirm('Remove from wishlist?', function(e) {
-              if (e) {
-                alertify.success('Removed from wishlist!');
-              } else {
-                alertify.message('Cancelled');
-              }
-            });
+            $btn.removeClass('bi-heart-fill text-danger').addClass('bi-heart');
+            if (typeof alertify !== 'undefined') alertify.success('Removed from wishlist!');
           }
           $('#wishlistCount').text(response.count);
-          showNotification(response.message);
         },
-        error: function() {
-          alert('Error occurred. Please try again.');
-        }
+        error: function() { alert('Error occurred. Please try again.'); }
       });
     });
+  }
 
+  $(document).ready(function() {
+    bindWishlistHandlers();
     // Check initial wishlist status on page load
     checkWishlistStatus();
   });

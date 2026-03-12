@@ -41,9 +41,11 @@ class Publish extends ADMIN_Controller
 
             $_POST['image'] = $this->uploadImage();
             $product_id = $this->Products_model->setProduct($_POST, $id);
-            $colors = isset($_POST['variation_color']) ? $_POST['variation_color'] : [];
-            $sizes  = isset($_POST['variation_sizes'])  ? $_POST['variation_sizes']  : [];
-            $this->Products_model->saveVariations($product_id, $colors, $sizes);
+            $colors   = isset($_POST['variation_color'])  ? $_POST['variation_color']  : [];
+            $sizes    = isset($_POST['variation_sizes'])   ? $_POST['variation_sizes']   : [];
+            $swatches = isset($_POST['variation_swatch'])  ? $_POST['variation_swatch']  : [];
+            $hexes    = isset($_POST['variation_hex'])     ? $_POST['variation_hex']     : [];
+            $this->Products_model->saveVariations($product_id, $colors, $sizes, $swatches, $hexes);
             $this->session->set_flashdata('result_publish', 'Product is published!');
             if ($id == 0) {
                 $this->saveHistory('Success published product');
@@ -89,6 +91,35 @@ class Publish extends ADMIN_Controller
         }
         $img = $this->upload->data();
         return $img['file_name'];
+    }
+
+    /*
+     * called from ajax — uploads a single swatch image, returns JSON {success, filename, url}
+     */
+    public function upload_swatch()
+    {
+        header('Content-Type: application/json');
+        $dir = './attachments/product_swatches/';
+        if (!is_dir($dir)) {
+            mkdir($dir, 0777, true);
+        }
+        $this->load->library('upload');
+        $this->upload->initialize([
+            'upload_path'   => $dir,
+            'allowed_types' => $this->allowed_img_types,
+            'max_size'      => 2048,
+        ]);
+        if (!$this->upload->do_upload('swatch')) {
+            echo json_encode(['success' => false, 'error' => strip_tags($this->upload->display_errors())]);
+            exit;
+        }
+        $img = $this->upload->data();
+        echo json_encode([
+            'success'  => true,
+            'filename' => $img['file_name'],
+            'url'      => base_url('attachments/product_swatches/' . $img['file_name']),
+        ]);
+        exit;
     }
 
     /*

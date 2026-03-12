@@ -193,12 +193,23 @@ public function scan_result() {
         $data['brands'] = $this->Brands_model->getBrands();
         $data['showOutOfStock'] = $this->Home_admin_model->getValueStore('outOfStock');
         $data['shippingOrder'] = $this->Home_admin_model->getValueStore('shippingOrder');
+        $data['filter_seasons'] = $this->Public_model->getDistinctFilterValues('season');
+        $data['filter_genders'] = $this->Public_model->getDistinctFilterValues('gender');
+        $data['filter_sizes']   = $this->Public_model->getDistinctFilterValues('size_range');
         $data['products'] = $this->Public_model->getProducts($this->num_rows, $page, $_GET);
           //echo '<pre>'; print_r( $data['products']);
         $product_ids = array_column($data['products'], 'id');
         $data['variations'] = $this->Public_model->getVariationsForProducts($product_ids);
         $rowscount = $this->Public_model->productsCount($_GET);
         $data['links_pagination'] = pagination('home/shop', $rowscount, $this->num_rows);
+        // Wishlist product IDs for the current user (to pre-mark hearts)
+        $uid = user_id();
+        if ($uid) {
+            $wl_rows = $this->db->select('product_id')->where('user_id', $uid)->get('wishlists')->result_array();
+            $data['wishlist_ids'] = array_column($wl_rows, 'product_id');
+        } else {
+            $data['wishlist_ids'] = [];
+        }
         $this->render('shop', $head, $data);
     }
     public function new_arrivals($page = 0){
@@ -314,139 +325,148 @@ public function scan_result() {
         $data = array();
         $head = array();
         $data['product'] = $this->Public_model->getOneProduct($id);
-        $data['sameCagegoryProducts'] = $this->Public_model->sameCagegoryProducts($data['product']['shop_categorie'], $id);
-        if ($data['product'] === null) {
+        if (empty($data['product'])) {
             show_404();
         }
-        $vars['publicDateAdded'] = $this->Home_admin_model->getValueStore('publicDateAdded');
-        $this->load->vars($vars);
+        $data['sameCagegoryProducts'] = $this->Public_model->sameCagegoryProducts($data['product']['shop_categorie'], $id);
+        // Load variations
+        $variations_map = $this->Public_model->getVariationsForProducts([$id]);
+        $data['variations'] = isset($variations_map[$id]) ? $variations_map[$id] : [];
+        // Wishlist
+        $uid = (int)user_id();
+        $data['is_wishlisted'] = false;
+        if ($uid) {
+            $data['is_wishlisted'] = $this->db->where('user_id', $uid)->where('product_id', $id)->count_all_results('wishlists') > 0;
+        }
         $head['title'] = $data['product']['title'];
         $description = url_title(character_limiter(strip_tags($data['product']['description']), 130));
         $description = str_replace("-", " ", $description) . '..';
         $head['description'] = $description;
         $head['keywords'] = str_replace(" ", ",", $data['product']['title']);
         $head['image'] = null;
-        if(isset($data['product']['image'])) {
+        if (isset($data['product']['image'])) {
             $head['image'] = base_url('/attachments/shop_images/' . $data['product']['image']);
         }
         $this->render('view_product', $head, $data);
     }
     
-    public function ajax_cart_filter(){
+    public function ajax_cart_filter() {
+        header('Content-Type: application/json');
         $post = $this->input->post();
-       // print_r($post); die;
-        $post['season'];
-$this->db->select('p.*, pt.title, pt.description, pt.*');
-$this->db->from('products p');
-$this->db->join('products_translations pt', 
-                'p.id = pt.for_id',  // ✅ Fixed join condition
-                'left');
 
-// ✅ CRITICAL: Check if season exists FIRST
-if (!empty($post['season'])) {
-    $this->db->where('pt.season', $post['season']);
-} else {
-    // No season filter OR handle NULL
-    $this->db->group_start()
-             ->where('pt.season IS NULL')
-             ->or_where('pt.season =', '')
-             ->group_end();
-}
+        // Tiered pricing: get logged-in user's discount percent
+        $uid = user_id();
+        $user_percent = 0;
+        $ajax_wishlist_ids = [];
+        if ($uid) {
+            $user_row = $this->db->select('percent')->where('id', $uid)->get('users_public')->row();
+            if ($user_row && !empty($user_row->percent)) {
+                $user_percent = (float)$user_row->percent;
+            }
+            $wl_rows = $this->db->select('product_id')->where('user_id', $uid)->get('wishlists')->result_array();
+            $ajax_wishlist_ids = array_column($wl_rows, 'product_id');
+        }
 
-$query = $this->db->get();
+        // Collect filter params from POST
+        $filters = [
+            'category'        => (string)($post['category'] ?? ''),
+            'season'          => (string)($post['season'] ?? ''),
+            'gender'          => (string)($post['gender'] ?? ''),
+            'search_in_title' => (string)($post['search_in_title'] ?? ''),
+            'search_in_brand' => (string)($post['search_in_brand'] ?? ''),
+            'search_in_desc'  => (string)($post['search_in_desc'] ?? ''),
+            'search_in_color' => (string)($post['search_in_color'] ?? ''),
+            'search_in_size'  => (string)($post['search_in_size'] ?? ''),
+            'order_new'       => (string)($post['order_new'] ?? ''),
+            'order_price'     => (string)($post['order_price'] ?? ''),
+            'price_from'      => (string)($post['price_from'] ?? ''),
+            'price_to'        => (string)($post['price_to'] ?? ''),
+            'brand_id'        => (string)($post['brand_id'] ?? ''),
+            'in_stock'        => (string)($post['in_stock'] ?? ''),
+        ];
 
-if ($query === FALSE) {
-    // Query failed
-    log_message('error', 'SQL Error: ' . $this->db->error()['message']);
-    log_message('error', 'Last Query: ' . $this->db->last_query());
-    $result = [];
-} else {
-    $result = $query->result_array();
-}
-          foreach ($result as $val) {  
-              
-        $html .='  <div class="col-lg-3 col-md-4 col-6">
-                          <div class="tb-product-item-inner">
-                            <div class="card product-card position-relative" data-bs-toggle="modal" data-bs-target="#productModal" tabindex="0" onerror="this.onerror=null; this.src='.base_url('/attachments/shop_images/spark_logo-06.jpg').';"
-                              data-title="'.$val['title'].'" data-brand="'.$val['brand'].'" data-sku="BUP-AUR-DRS-WHT"
-                              data-price="'.$val['wsp'].'" data-mrp="'.$val['msp'].'"
-                              data-desc="'.$val['description'].'"
-                              data-fabric="'.$val['fabric'].'"
-                              data-id="'.$val['id'].'"
+        $products = $this->Public_model->getProducts($this->num_rows, 0, $filters);
+        $count    = $this->Public_model->productsCount($filters);
 
-                              data-images="'. base_url('attachments/shop_images/').$val['image'].'"
-                              data-colors="'.$val['color'].'"
-                              data-sizes="'.$val['size_range'].'">';
+        // Load variations
+        $product_ids = array_column($products, 'id');
+        $variations  = $this->Public_model->getVariationsForProducts($product_ids);
 
-                             
-                              // Path to the folder containing images
-                              $folderPath = $_SERVER['DOCUMENT_ROOT'] . '/attachments/shop_images/';
+        $folderPath = $_SERVER['DOCUMENT_ROOT'] . '/attachments/shop_images/';
+        $html = '';
 
-                              // Image filename to check
-                              $imageName = $val['image'];
+        foreach ($products as $val) {
+            $prod_url   = base_url($val['url'] . '_' . $val['id']);
+            $imagePath  = $folderPath . trim($val['image']);
+            $img_src    = base_url('attachments/shop_images/' . $val['image']);
+            $fallback   = base_url('attachments/shop_images/spark_logo-06.jpg');
+            $title_safe = htmlspecialchars($val['title'], ENT_QUOTES, 'UTF-8');
+            $brand_safe = htmlspecialchars($val['brand'] ?? '', ENT_QUOTES, 'UTF-8');
+            $desc_safe  = htmlspecialchars(mb_strimwidth(strip_tags($val['description'] ?? ''), 0, 60, '...'), ENT_QUOTES, 'UTF-8');
 
-                              // Full path to the image on server
-                              $imagePath = $folderPath . trim($imageName);
-                              //echo $img = base_url()."attachments/shop_images/".$val['image'];
-                              if (is_file($imagePath)) {
-                             
-                           $html .= '<div class="product-img-wrapper">
-                                  <img alt="product"
-                                    src="'. base_url('attachments/shop_images/').$val['image'].'"
-                                    style="object-fit:scale-down;"
-                                    class="w-100 img_products"
-                                    onload="this.parentElement.classList.remove("skeleton")">
-                                  <span class="brand-badge-animated">
-                                    '.htmlspecialchars($val['brand']).'
-                                  </span>
-                                </div>';
-                               } else {
-                              $html .='<img alt="product" src="'.base_url('attachments/shop_images/').$val['image'].'" onerror="this.onerror=null; this.src='.base_url('/attachments/shop_images/spark_logo-06.jpg').';" style="object-fit: scale-down!important;" class="w-100 img_products"
-                                  onload="this.parentElement.classList.remove("skeleton")">';
-                              } 
-                          $html .=' </div>
-                            <div><a href="#"><i data-product-id="'.$val['id'].'" class="bi bi-heart wishlist-btn"></i></a></div>
-                            <ul class="list-unstyled tb-content">
-                              <li><a href="#">'.$val['title'].'</a></li>
-                              <li class="small"><a href="#" class="text-muted">'.$val['size_range'].'</a></li>
-                              <li>'.$val['color'].'</li>
-                              <li>
-                                <ol class="price-list">
-                                  <li>WSP '.$val['wsp'].' /-</li>
-                                  <li>MRP '.$val['msp'].' /-</li>
-                                </ol>
-                              </li>
-                              <li>
-                                <a href="javascript:void(0);"  data-price="'.$val['wsp'].'" data-mrp="'.$val['msp'].'" class="btn btn-dark w-100 rounded-pill mt-2 add-to-cart_new" data-action="add"  data-id="'.$val['id'].'">Add To Cart</a>
-                              </li>
-                            </ul>
-                            <!-- <div class="tb-beg">
-                                <a href="#">'.$val['title'].'</a>
-                              </div>
-                              <div class="tb-beg">
-                                <a href="#">'.$val['size_range'].'</a>
-                              </div>
-                              <div class="tb-product-price">
-                                <span class="amount">'.$val['color'].'</span>
-                              </div>
-                              <div class="tb-product-price">
-                                <span class="amount">MRP '.$val['msp'].' /-</span>
-                              </div>
-                              <div class="tb-product-price">
-                                <span class="amount">WSP '.$val['wsp'].' /-</span>
-                              </div> -->
-                            <!-- <div class="add-to-cart">
-                                <a href="javascript:void(0);" class="add-to-cart btn-add " data-goto="https://darkred-crane-589214.hostingersite.com/misberry/Ec/shopping-cart" data-id="1">
-                                    <img class="loader" src="https://darkred-crane-589214.hostingersite.com/misberry/Ec/assets/imgs/ajax-loader.gif" alt="Loding">
-                                    <span class="text-to-bg">Add to basket</span>
-                                </a>
-                            </div>-->
-                          </div>
-                        </div>
-';
+            // Apply tiered pricing
+            $wsp = (float)($val['wsp'] ?? 0);
+            $msp = (float)($val['msp'] ?? 0);
+            if ($user_percent > 0) {
+                $wsp = round($wsp * (1 - $user_percent / 100), 2);
+            }
 
-          }
-          echo $html; die;
+            // Heart icon
+            $heart_class = in_array($val['id'], $ajax_wishlist_ids) ? 'bi bi-heart-fill text-danger' : 'bi bi-heart';
+
+            // Image block
+            if (is_file($imagePath)) {
+                $img_html = '<div class="product-img-wrapper">'
+                    . '<img alt="' . $title_safe . '" src="' . $img_src . '" style="object-fit:scale-down;" class="w-100 img_products" onload="this.parentElement.classList.remove(\'skeleton\')">'
+                    . '<span class="brand-badge-animated">' . $brand_safe . '</span>'
+                    . '</div>';
+            } else {
+                $img_html = '<img alt="' . $title_safe . '" src="' . $img_src . '" onerror="this.onerror=null;this.src=\'' . $fallback . '\';" style="object-fit:scale-down!important;" class="w-100 img_products">';
+            }
+
+            // Variation chips
+            $color_chips = '';
+            $size_chips  = '';
+            if (!empty($variations[$val['id']])) {
+                foreach ($variations[$val['id']] as $v) {
+                    if (trim($v['color'])) {
+                        $color_chips .= '<span class="var-tag-color">' . htmlspecialchars(trim($v['color']), ENT_QUOTES, 'UTF-8') . '</span>';
+                    }
+                }
+                $uniq_sizes = [];
+                foreach ($variations[$val['id']] as $v) {
+                    foreach (array_map('trim', explode(',', $v['sizes'])) as $s) {
+                        if ($s !== '') $uniq_sizes[$s] = $s;
+                    }
+                }
+                foreach ($uniq_sizes as $s) {
+                    $size_chips .= '<span class="var-tag-size">' . htmlspecialchars($s, ENT_QUOTES, 'UTF-8') . '</span>';
+                }
+            } else {
+                $color_chips = '<span class="text-muted">' . htmlspecialchars($val['color'] ?? '', ENT_QUOTES, 'UTF-8') . '</span>';
+                $size_chips  = '<span class="text-muted">' . htmlspecialchars($val['size_range'] ?? '', ENT_QUOTES, 'UTF-8') . '</span>';
+            }
+
+            $html .= '<div class="col-lg-3 col-md-4 col-6">'
+                . '<div class="tb-product-item-inner">'
+                . '<div class="card product-card border-0">'
+                . '<a href="' . $prod_url . '">' . $img_html . '</a>'
+                . '</div>'
+                . '<div><a href="javascript:void(0);"><i data-product-id="' . (int)$val['id'] . '" class="' . $heart_class . ' wishlist-btn"></i></a></div>'
+                . '<ul class="list-unstyled tb-content">'
+                . '<li><a href="' . $prod_url . '">' . $title_safe . '</a></li>'
+                . '<li><a href="' . $prod_url . '" class="text-muted small">' . $desc_safe . '</a></li>'
+                . '<li class="small var-chips">' . $color_chips . '</li>'
+                . '<li class="var-chips">' . $size_chips . '</li>'
+                . '<li><ol class="price-list"><li>WSP ' . number_format($wsp, 0) . ' /-</li><li>MRP ' . number_format($msp, 0) . ' /-</li></ol></li>'
+                . '<li><a href="javascript:void(0);" data-price="' . $wsp . '" data-mrp="' . $msp . '" class="btn btn-dark w-100 rounded-pill mt-2 add-to-cart_new" data-action="add" data-id="' . (int)$val['id'] . '">Add To Cart</a></li>'
+                . '</ul>'
+                . '</div>'
+                . '</div>';
+        }
+
+        echo json_encode(['html' => $html, 'count' => (int)$count]);
+        exit;
     }
 
     public function confirmLink($md5)
@@ -541,8 +561,50 @@ if ($query === FALSE) {
             $order_by = $_GET['order_by'];
         }
         $data['orders'] = $this->Orders_model->orders($this->num_rows, $page=null, $order_by);
+
+        // Current user's own orders (My Orders tab)
+        $uid = (int)user_id();
+        $this->db->select('orders.id, orders.order_id, orders.date, orders.processed, orders.products, orders.payment_type');
+        $this->db->where('orders.user_id', $uid);
+        $this->db->order_by('orders.id', 'DESC');
+        $my_orders_raw = $this->db->get('orders')->result_array();
+        $my_stats = ['total' => count($my_orders_raw), 'pending' => 0, 'shipped' => 0, 'delivered' => 0];
+        foreach ($my_orders_raw as $mo) {
+            if ($mo['processed'] == 0)     $my_stats['pending']++;
+            elseif ($mo['processed'] == 1) $my_stats['shipped']++;
+            elseif ($mo['processed'] == 2) $my_stats['delivered']++;
+        }
+        $data['my_orders'] = $my_orders_raw;
+        $data['my_stats']  = $my_stats;
+
+        // Current user's type for role-based tab visibility
+        $user_row = $this->db->select('type')->where('id', $uid)->get('users_public')->row();
+        $type_map = [1 => 'agent', 2 => 'distributor', 3 => 'wholesaler', 4 => 'retailer'];
+        $data['user_role'] = isset($user_row->type) ? ($type_map[$user_row->type] ?? 'retailer') : 'retailer';
+
         $data['product'] = $this-> Wishlist_model->get_wishlist();
         $data['user_addresses'] = $this->_get_user_addresses();
+
+        // Retailer orders: orders placed by retailers managed by this agent/distributor
+        $client_ids = array_map(function($c) { return (int)$c->id; }, $data['clients']);
+        $retailer_orders = [];
+        $retailer_stats  = ['total' => 0, 'pending' => 0, 'shipped' => 0, 'delivered' => 0];
+        if (!empty($client_ids)) {
+            $this->db->select('orders.id, orders.order_id, orders.date, orders.processed, orders.products, orders.payment_type, users_public.name as retailer_name');
+            $this->db->join('users_public', 'users_public.id = orders.user_id', 'left');
+            $this->db->where_in('orders.user_id', $client_ids);
+            $this->db->order_by('orders.id', 'DESC');
+            $retailer_orders = $this->db->get('orders')->result_array();
+            $retailer_stats['total'] = count($retailer_orders);
+            foreach ($retailer_orders as $ro) {
+                if ($ro['processed'] == 0)      $retailer_stats['pending']++;
+                elseif ($ro['processed'] == 1)  $retailer_stats['shipped']++;
+                elseif ($ro['processed'] == 2)  $retailer_stats['delivered']++;
+            }
+        }
+        $data['retailer_orders'] = $retailer_orders;
+        $data['retailer_stats']  = $retailer_stats;
+
         $this->load->view('templates/redlabel/_parts/header');
         $this->load->view('templates/redlabel/account',$data);
         $this->load->view('templates/redlabel/_parts/footer');

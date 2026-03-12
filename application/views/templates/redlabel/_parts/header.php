@@ -75,10 +75,6 @@
 		<nav class="navbar bg-white">
 			<div class="container-fluid">
 				<div class="brand-logo">
-					<button class="mobilbtn" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu"
-						aria-controls="offcanvasMenu" aria-expanded="true"><img src="<?php echo base_url(); ?>assets/gallery/interface.webp"
-							alt="menu" class="img-fluid">
-					</button>
 					<a class="navbar-brand" href="<?php echo base_url(); ?>">
 						<img src="<?php echo base_url(); ?>assets/gallery/logo.webp" alt="houseofstitches"
 							class="img-fluid d-none d-sm-block">
@@ -87,23 +83,26 @@
 					</a>
 				</div>
 				<ul class="list-unstyled d-none d-lg-flex align-items-center mb-0 gap-3 header-nav">
-					<li><a class="header-nav-link" href="<?php echo base_url('home/shop'); ?>">Shop</a></li>
-					<li><a class="header-nav-link" href="<?php echo base_url('offer'); ?>">Offers</a></li>
-					<li><a class="header-nav-link" href="<?php echo base_url('wishlist'); ?>">Wishlist</a></li>
+					<!-- <li><a class="header-nav-link" href="<?php echo base_url('home/shop'); ?>">Shop</a></li> -->
+					<!-- <li><a class="header-nav-link" href="<?php echo base_url('offer'); ?>">Offers</a></li> -->
+					<!-- <li><a class="header-nav-link" href="<?php echo base_url('wishlist'); ?>">Wishlist</a></li> -->
 					<?php if (!empty($this->session->userdata('logged_user'))) { ?>
-						<li><a class="header-nav-link" href="<?php echo base_url('home/account'); ?>">Account</a></li>
-						<li><a class="header-nav-link" href="<?php echo base_url('shopping-cart'); ?>">Cart</a></li>
+						<!-- <li><a class="header-nav-link" href="<?php echo base_url('home/account'); ?>">Account</a></li> -->
+						<!-- <li><a class="header-nav-link" href="<?php echo base_url('shopping-cart'); ?>">Cart</a></li> -->
 					<?php } else { ?>
 						<li><a class="header-nav-link" href="<?php echo base_url('register'); ?>">Account</a></li>
 					<?php } ?>
 				</ul>
 				<ul class="list-unstyled d-flex justify-content-between align-items-center mb-0 gap-4 me-md-3 me-1">
+					<li class="nav-icon"><a href="<?php echo base_url('home/shop'); ?>" title="Shop"><i class="bi bi-grid"></i></a></li>
+					<li class="nav-icon"><a href="<?php echo base_url('offer'); ?>" title="Offers"><i class="bi bi-tag"></i></a></li>
 					<?php if (empty($this->session->userdata('logged_user'))) { ?>
 						<li class="nav-icon"><a href="<?php echo base_url('register'); ?>"><i class="bi bi-person"></i></a></li>
 					<?php } ?>
 					<?php if (!empty($this->session->userdata('logged_user'))) { ?>
 						<li class="nav-icon" method="GET" action="<?php echo base_url('home/shop'); ?>" id="bigger-search" data-bs-toggle="offcanvas" data-bs-target="#searchOffcanvas"><i class="bi bi-search"></i></li>
 						<li class="nav-icon" style="text-shadow: none;"><a href="<?php echo base_url('home/barcode_scan'); ?>"><i class="bi bi-qr-code-scan"></i></a></li>
+						<li class="nav-icon"><a href="<?php echo base_url('home/account'); ?>" title="My Account"><i class="bi bi-person-circle"></i></a></li>
 						<li class="nav-icon"><a href="<?php echo base_url('wishlist'); ?>"><i class="bi bi-heart"></i></a></li>
 						<li class="nav-icon position-relative">
 							<a href="javascript:void(0);" id="cartIconBtn" data-bs-toggle="offcanvas" data-bs-target="#cartOffcanvas">
@@ -120,116 +119,6 @@
 				</ul>
 			</div>
 		</nav>
-		<div class="offcanvas offcanvas-start menusidebaar" tabindex="-1" id="offcanvasMenu">
-			<div class="offcanvas-header">
-				<a type="button" class="cancel-btn" data-bs-dismiss="offcanvas">
-					<i class="bi bi-x-lg"></i>
-				</a>
-				<img src="<?php echo base_url(); ?>assets/gallery/logo.webp" alt="houseofstitches"
-					class="img-fluid">
-			</div>
-			<div class="offcanvas-body">
-				<div class="utility">
-					<?php if (empty($this->session->userdata('logged_user'))) { ?>
-						<a class="u-btn" href="<?php echo base_url('register'); ?>">Shop</a>
-						<a class="u-btn" href="<?php echo base_url('register'); ?>">Pre-Booking</a>
-					<?php } else { ?>
-						<a class="u-btn" href="<?php echo base_url('home/shop'); ?>">Shop</a>
-						<a class="u-btn" href="<?php echo base_url('home/prebooking'); ?>">Pre-Booking</a>
-					<?php } ?>
-				</div>
-				<div class="brandsearch">
-					<?php
-					$cat = !empty($_GET['category']) ? $_GET['category'] : '';
-					?>
-					<form class="form-horizontal" method="GET" action="<?php echo base_url('home/shop'); ?>" id="bigger-search">
-						<input type="hidden" name="category" value="<?= $cat; ?>">
-						<input type="hidden" name="in_stock" value="">
-						<input type="hidden" name="search_in_title" value="">
-						<input type="hidden" name="order_new" value="">
-						<input type="hidden" name="order_price" value="">
-						<input type="hidden" name="order_procurement" value="">
-						<input type="hidden" name="brand_id" value="">
-						<input type="hidden" name="search_in_desc" value="">
-						<input type="hidden" name="search_in_color" value="">
-						<input type="hidden" name="search_in_size" value="">
-						<input type="hidden" name="search_in_brand" value="">
-						<input type="hidden" name="season" value="">
-						<input type="hidden" name="gender" value="">
-						<input type="hidden" name="go_filter" value="">
-						<input class="form-control" type="search" placeholder="Search" aria-label="Search" id="search_in_title" name="search_in_title">
-						<input class="form-control" type="submit" placeholder="Search" aria-label="Search" id="search_submit" name="submit">
-					</form>
-				</div>
-				<ul class="navbar-nav">
-					<div class="navsection">
-						<details open>
-							<summary>OUR BRAND<span class="chev">›</span></summary>
-							<div class="brand-intro">
-								<div class="tile">
-									<div class="brandtitle">Spark</div>
-									<div class="chips">
-										<a class="chip go-brand" data-brand-desc="T-Shirt" data-brand="spark">T-Shirt</a>
-										<a class="chip go-brand" data-brand-desc="Shirt" data-brand="spark">Shirt</a>
-										<a class="chip go-brand" data-brand-desc="3 PCS BABA SUIT" data-brand="spark">Three Sets</a>
-										<a class="chip go-brand" data-brand-desc="Bottom" data-brand="spark">Bottom</a>
-									</div>
-								</div>
-								<div class="tile">
-									<div class="brandtitle">BloomUp</div>
-									<div class="chips">
-										<a class="chip" href="<?php echo base_url('home/shop'); ?>">Top's</a>
-										<a class="chip" href="<?php echo base_url('home/shop'); ?>">Bottoms</a>
-										<a class="chip" href="<?php echo base_url('home/shop'); ?>">Sets</a>
-										<a class="chip" href="<?php echo base_url('home/shop'); ?>">Dungarees</a>
-										<a class="chip" href="<?php echo base_url('home/shop'); ?>">Dresses</a>
-									</div>
-								</div>
-							</div>
-							<div class="muted">Clothing That Feels Like Home.</div>
-						</details>
-					</div>
-					<?php if (!empty($this->session->userdata('logged_user'))) { ?>
-						<div class="navsection">
-							<details>
-								<summary><a href="<?php echo base_url('home/account'); ?>">MY ACCOUNT</a><span class="chev">›</span></summary>
-								<div class="nav-items">
-									<a class="nav-links" href="<?php echo base_url('home/account'); ?>">My Orders</a>
-									<a class="nav-links" href="<?php echo base_url('wishlist'); ?>">Wishlist</a>
-									<a class="nav-links" href="<?php echo base_url('myaccount'); ?>">Addresses</a>
-									<a class="nav-links" href="<?= base_url('home/account'); ?>">Profile</a>
-									<a class="nav-links" href="<?php echo base_url('logout'); ?>">Logout</a>
-								</div>
-							</details>
-						</div>
-					<?php } else { ?>
-						<div class="navsection">
-							<details>
-								<summary><a href="<?php echo base_url('register'); ?>">MY ACCOUNT</a><span class="chev">›</span></summary>
-							</details>
-						</div>
-					<?php } ?>
-					<div class="navsection">
-						<details>
-							<summary>HELP & SUPPORT <span class="chev">›</span></summary>
-							<div class="nav-items">
-								<a class="nav-links" href="<?php echo base_url('page/terms-conditions'); ?>">Terms & Conditions</a>
-								<a class="nav-links" href="<?php echo base_url('page/privacy-policy'); ?>">Privacy Policy</a>
-								<a class="nav-links" href="<?php echo base_url('page/track-order'); ?>">Track Order</a>
-								<a class="nav-links" href="<?php echo base_url('page/returns-exchange'); ?>">Returns & Exchanges</a>
-								<a class="nav-links" href="<?php echo base_url('page/shipping'); ?>">Shipping Information</a>
-								<a class="nav-links" href="<?php echo base_url('page/payment-method'); ?>">Payment Methods</a>
-								<a class="nav-links" href="<?php echo base_url('page/gift-cards'); ?>">Gift Cards</a>
-							</div>
-						</details>
-					</div>
-					<div class="bottom-cta">
-						<a class="btn btn-success w-100 rounded-pill text-center my-2" href="<?php echo base_url('checkout'); ?>">Proceed to Checkout</a>
-						<a class="btn_button w-100 rounded-pill text-center py-2 d-block" href="<?php echo base_url('shopping-cart'); ?>">View Cart</a>
-					</div>
-				</ul>
-			</div>
-		</div>
 		<div class="offcanvas offcanvas-end searchform" tabindex="-1" id="searchOffcanvas">
 			<div class="offcanvas-body">
 				<div class="d-flex">
