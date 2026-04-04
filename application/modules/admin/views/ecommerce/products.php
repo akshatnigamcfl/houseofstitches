@@ -65,10 +65,10 @@
                         <div class="col-sm-4">
                             <label>Order:</label>
                             <select name="order_by" class="form-control selectpicker change-products-form">
-                                <option <?= isset($_GET['order_by']) && $_GET['order_by'] == 'id=desc' ? 'selected=""' : '' ?> value="id=desc">Newest</option>
-                                <option <?= isset($_GET['order_by']) && $_GET['order_by'] == 'id=asc' ? 'selected=""' : '' ?> value="id=asc">Latest</option>
-                                <option <?= isset($_GET['order_by']) && $_GET['order_by'] == 'quantity=asc' ? 'selected=""' : '' ?> value="quantity=asc">Low Quantity</option>
-                                <option <?= isset($_GET['order_by']) && $_GET['order_by'] == 'quantity=desc' ? 'selected=""' : '' ?> value="quantity=desc">High Quantity</option>
+                                <option <?= isset($_GET['order_by']) && $_GET['order_by'] == 'id-desc' ? 'selected=""' : '' ?> value="id-desc">Newest</option>
+                                <option <?= isset($_GET['order_by']) && $_GET['order_by'] == 'id-asc' ? 'selected=""' : '' ?> value="id-asc">Latest</option>
+                                <option <?= isset($_GET['order_by']) && $_GET['order_by'] == 'quantity-asc' ? 'selected=""' : '' ?> value="quantity-asc">Low Quantity</option>
+                                <option <?= isset($_GET['order_by']) && $_GET['order_by'] == 'quantity-desc' ? 'selected=""' : '' ?> value="quantity-desc">High Quantity</option>
                             </select>
                         </div>
                         <div class="col-sm-4">

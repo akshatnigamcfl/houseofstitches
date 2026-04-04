@@ -89,7 +89,7 @@
                         </div>
                     </div>
                 </div>
-                <a href="<?= base_url('admin/products?order_by=quantity=asc') ?>">
+                <a href="<?= base_url('admin/products?order_by=quantity-asc') ?>">
                     <div class="panel-footer"><span class="pull-left">View</span><span class="pull-right"><i class="fa fa-arrow-circle-right"></i></span><div class="clearfix"></div></div>
                 </a>
             </div>
@@ -105,7 +105,7 @@
                         </div>
                     </div>
                 </div>
-                <a href="<?= base_url('admin/products?order_by=quantity=asc') ?>">
+                <a href="<?= base_url('admin/products?order_by=quantity-asc') ?>">
                     <div class="panel-footer"><span class="pull-left">Restock</span><span class="pull-right"><i class="fa fa-arrow-circle-right"></i></span><div class="clearfix"></div></div>
                 </a>
             </div>

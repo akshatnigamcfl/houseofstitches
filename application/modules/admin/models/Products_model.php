@@ -82,7 +82,7 @@ class Products_model extends CI_Model
             $this->db->where("(products_translations.title LIKE '%$search_title%' OR products.article_number LIKE '%$search_title%')");
         }
         if ($orderby !== null) {
-            $ord = explode('=', $orderby);
+            $ord = explode('-', $orderby);
             if (isset($ord[0]) && isset($ord[1])) {
                 $this->db->order_by('products.' . $ord[0], $ord[1]);
             }
