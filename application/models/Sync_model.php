@@ -79,7 +79,15 @@ class Sync_model extends CI_Model
     private function _db2()
     {
         if (!$this->db2) {
-            $this->db2 = $this->load->database('db2', TRUE);
+            try {
+                $conn = $this->load->database('db2', TRUE);
+                if (!$conn || $conn === FALSE) {
+                    throw new \RuntimeException('DB2 connection returned false — pdo_dblib likely not installed on this server.');
+                }
+                $this->db2 = $conn;
+            } catch (\Throwable $e) {
+                throw new \RuntimeException('DB2 unavailable: ' . $e->getMessage());
+            }
         }
         return $this->db2;
     }

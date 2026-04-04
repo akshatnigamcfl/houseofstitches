@@ -28,26 +28,34 @@ class Sync extends ADMIN_Controller
         // Manual sync trigger
         if ($this->input->get('run') === '1') {
             set_time_limit(0);
-            $result = $this->Sync_model->runSync();
-            $this->session->set_flashdata('sync_msg',
-                'Sync complete — Created: ' . $result['created'] .
-                ', Updated: ' . $result['updated'] .
-                ', Skipped: ' . $result['skipped']
-            );
+            try {
+                $result = $this->Sync_model->runSync();
+                $this->session->set_flashdata('sync_msg',
+                    'Sync complete — Created: ' . $result['created'] .
+                    ', Updated: ' . $result['updated'] .
+                    ', Skipped: ' . $result['skipped']
+                );
+            } catch (\Throwable $e) {
+                $this->session->set_flashdata('sync_msg', 'Sync failed: DB2 unavailable on this server. ' . $e->getMessage());
+            }
             redirect('admin/db2-sync');
         }
 
         // Clear all synced products then re-sync fresh
         if ($this->input->get('clear') === '1') {
             set_time_limit(0);
-            $deleted = $this->Sync_model->clearSyncedProducts();
-            $result  = $this->Sync_model->runSync();
-            $this->session->set_flashdata('sync_msg',
-                'Cleared ' . $deleted . ' synced products. Fresh sync complete — ' .
-                'Created: ' . $result['created'] .
-                ', Updated: ' . $result['updated'] .
-                ', Skipped: ' . $result['skipped']
-            );
+            try {
+                $deleted = $this->Sync_model->clearSyncedProducts();
+                $result  = $this->Sync_model->runSync();
+                $this->session->set_flashdata('sync_msg',
+                    'Cleared ' . $deleted . ' synced products. Fresh sync complete — ' .
+                    'Created: ' . $result['created'] .
+                    ', Updated: ' . $result['updated'] .
+                    ', Skipped: ' . $result['skipped']
+                );
+            } catch (\Throwable $e) {
+                $this->session->set_flashdata('sync_msg', 'Sync failed: DB2 unavailable on this server. ' . $e->getMessage());
+            }
             redirect('admin/db2-sync');
         }
 
@@ -59,7 +67,7 @@ class Sync extends ADMIN_Controller
         $data['sync_interval']    = $this->Sync_model->getSyncInterval();
         try {
             $data['db2_item_count'] = $this->Sync_model->getDB2ItemCount();
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             $data['db2_item_count'] = '—';
             $data['sync_msg'] = 'DB2 connection unavailable on this server. Sync can only be run from a server with FreeTDS/pdo_dblib installed. Error: ' . $e->getMessage();
         }
