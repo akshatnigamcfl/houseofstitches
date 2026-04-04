@@ -11,7 +11,7 @@
     <div class="col-sm-3">
         <div class="panel panel-default" style="border-left:4px solid #3498db;">
             <div class="panel-body text-center">
-                <div style="font-size:28px;font-weight:700;color:#3498db;"><?= number_format($db2_item_count) ?></div>
+                <div style="font-size:28px;font-weight:700;color:#3498db;"><?= is_numeric($db2_item_count) ? number_format($db2_item_count) : $db2_item_count ?></div>
                 <div class="text-muted small">Active Items in DB2</div>
             </div>
         </div>
