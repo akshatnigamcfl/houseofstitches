@@ -266,8 +266,22 @@ public function do_upload()
         }
           
         $data['products_lang'] = $products_lang = $this->session->userdata('admin_lang_products');
-        $rowscount = $this->Products_model->productsCount($search_title, $category);
-        $data['products'] = $this->Products_model->getproducts($this->num_rows, $page, $search_title, $orderby, $category, $vendor);
+        try {
+            $rowscount = $this->Products_model->productsCount($search_title, $category);
+            $data['products'] = $this->Products_model->getproducts($this->num_rows, $page, $search_title, $orderby, $category, $vendor);
+        } catch (\Throwable $e) {
+            log_message('error', '[Products::index] Search failed'
+                . ' | search_title=' . var_export($search_title, true)
+                . ' | orderby='      . var_export($orderby, true)
+                . ' | category='     . var_export($category, true)
+                . ' | page='         . $page
+                . ' | last_query='   . $this->db->last_query()
+                . ' | error='        . $e->getMessage()
+                . ' | file='         . $e->getFile() . ':' . $e->getLine()
+            );
+            $rowscount = 0;
+            $data['products'] = [];
+        }
         //$data['products'] = $this->Products_model->getproducts('', $page, $search_title, $orderby, $category, $vendor);
         $data['links_pagination'] = pagination('admin/products', $rowscount, $this->num_rows, 3);
 
