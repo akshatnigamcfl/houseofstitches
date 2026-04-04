@@ -171,16 +171,6 @@
                                     </td>
                                     <td>
                                         <?= $row->title ?>
-                                        <?php if (!empty($barcode_map[$row->id])): ?>
-                                            <?php
-                                            $companies = array_unique(array_filter(array_column($barcode_map[$row->id], 'company')));
-                                            sort($companies);
-                                            foreach ($companies as $co):
-                                                $co_color = $co === 'C05' ? '#3498db' : ($co === 'C08' ? '#27ae60' : '#95a5a6');
-                                            ?>
-                                                <span style="display:inline-block;background:<?= $co_color ?>;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:3px;margin-left:4px;"><?= htmlspecialchars($co) ?></span>
-                                            <?php endforeach; ?>
-                                        <?php endif; ?>
                                         <?php if ($row->itm_synced && $row->image == ''): ?>
                                             <br><span class="label label-warning" style="font-size:10px;">Pending Setup</span>
                                         <?php endif; ?>

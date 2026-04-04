@@ -289,13 +289,12 @@ public function do_upload()
         $data['barcode_map'] = [];
         if ($this->db->table_exists('product_barcodes') && !empty($data['products'])) {
             $product_ids = array_column((array)$data['products'], 'id');
-            $bc_rows = $this->db->select('product_id, barcode, size, stock_qty, company')->where_in('product_id', $product_ids)->order_by('size', 'ASC')->get('product_barcodes')->result_array();
+            $bc_rows = $this->db->select('product_id, barcode, size, stock_qty')->where_in('product_id', $product_ids)->order_by('size', 'ASC')->get('product_barcodes')->result_array();
             foreach ($bc_rows as $r) {
                 $data['barcode_map'][$r['product_id']][] = [
                     'barcode'   => $r['barcode'],
                     'size'      => $r['size'],
                     'stock_qty' => $r['stock_qty'],
-                    'company'   => $r['company'] ?? '',
                 ];
             }
         }
