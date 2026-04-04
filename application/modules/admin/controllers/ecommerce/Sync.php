@@ -57,7 +57,12 @@ class Sync extends ADMIN_Controller
             ? date('d M Y, h:i A', $lastSync + ($this->Sync_model->getSyncInterval() * 60))
             : '—';
         $data['sync_interval']    = $this->Sync_model->getSyncInterval();
-        $data['db2_item_count']   = $this->Sync_model->getDB2ItemCount();
+        try {
+            $data['db2_item_count'] = $this->Sync_model->getDB2ItemCount();
+        } catch (Exception $e) {
+            $data['db2_item_count'] = '—';
+            $data['sync_msg'] = 'DB2 connection unavailable on this server. Sync can only be run from a server with FreeTDS/pdo_dblib installed. Error: ' . $e->getMessage();
+        }
         $data['pending_setup']    = $this->Sync_model->getPendingSetupCount();
         $data['last_stats']       = $this->Sync_model->getLastSyncStats();
         $data['sync_msg']         = $this->session->flashdata('sync_msg');
