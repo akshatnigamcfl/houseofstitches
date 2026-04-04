@@ -79,15 +79,14 @@ class Sync_model extends CI_Model
     private function _db2()
     {
         if (!$this->db2) {
-            try {
-                $conn = $this->load->database('db2', TRUE);
-                if (!$conn || $conn === FALSE) {
-                    throw new \RuntimeException('DB2 connection returned false — pdo_dblib likely not installed on this server.');
-                }
-                $this->db2 = $conn;
-            } catch (\Throwable $e) {
-                throw new \RuntimeException('DB2 unavailable: ' . $e->getMessage());
+            if (!extension_loaded('pdo_dblib')) {
+                throw new \RuntimeException('pdo_dblib extension is not installed on this server. DB2 sync can only run from a machine with FreeTDS installed.');
             }
+            $conn = $this->load->database('db2', TRUE);
+            if (!$conn || $conn === FALSE) {
+                throw new \RuntimeException('DB2 connection failed. Check credentials in database.php.');
+            }
+            $this->db2 = $conn;
         }
         return $this->db2;
     }
