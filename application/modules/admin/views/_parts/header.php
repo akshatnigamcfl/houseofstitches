@@ -100,30 +100,48 @@
                                             </form>
                                         </div>
                                     </li>
+
+                                    <!-- ECOMMERCE -->
                                     <li class="header"><?= lang('ECOMMERCE') ?></li>
                                     <li><a href="<?= base_url('admin/publish') ?>" <?= urldecode(uri_string()) == 'admin/publish' ? 'class="active"' : '' ?>><i class="fa fa-edit" aria-hidden="true"></i> <?= lang('publish_product') ?></a></li>
                                     <li><a href="<?= base_url('admin/products') ?>" <?= urldecode(uri_string()) == 'admin/products' ? 'class="active"' : '' ?>><i class="fa fa-files-o" aria-hidden="true"></i> <?= lang('products') ?></a></li>
                                     <?php if ($showBrands == 1) { ?>
                                         <li><a href="<?= base_url('admin/brands') ?>" <?= urldecode(uri_string()) == 'admin/brands' ? 'class="active"' : '' ?>><i class="fa fa-registered" aria-hidden="true"></i> <?= lang('brands') ?></a></li>
                                     <?php } ?>
+                                    <li><a href="<?= base_url('admin/product-attributes') ?>" <?= urldecode(uri_string()) == 'admin/product-attributes' ? 'class="active"' : '' ?>><i class="fa fa-list-ul" aria-hidden="true"></i> Product Attributes</a></li>
                                     <li><a href="<?= base_url('admin/shopcategories') ?>" <?= urldecode(uri_string()) == 'admin/shopcategories' ? 'class="active"' : '' ?>><i class="fa fa-list-alt" aria-hidden="true"></i> <?= lang('shop_categories') ?></a></li>
                                     <li>
                                         <a href="<?= base_url('admin/orders') ?>" <?= urldecode(uri_string()) == 'admin/orders' ? 'class="active"' : '' ?>>
-                                            <i class="fa fa-money" aria-hidden="true"></i> 
-                                            <strong style="color:red;    font-size: 18px;"><?php echo get_order_received(); ?></strong>  
-                                            <?= lang('orders') ?> 
-                                            
+                                            <i class="fa fa-money" aria-hidden="true"></i>
+                                            <strong style="color:red;font-size:18px;"><?php echo get_order_received(); ?></strong>
+                                            <?= lang('orders') ?>
                                             <?php if ($numNotPreviewOrders > 0) { ?>
-                                                <img src="<?= base_url('assets/imgs/exlamation-hi.png') ?>" style="position: absolute; right:10px; top:7px;" alt="">
+                                                <img src="<?= base_url('assets/imgs/exlamation-hi.png') ?>" style="position:absolute;right:10px;top:7px;" alt="">
                                             <?php } ?>
                                         </a>
                                     </li>
                                     <li><a href="<?= base_url('admin/discounts') ?>" <?= urldecode(uri_string()) == 'admin/discounts' ? 'class="active"' : '' ?>><i class="fa fa-percent" aria-hidden="true"></i> <?= lang('discount_codes') ?></a></li>
+                                    <li><a href="#"><i class="fa fa-shopping-cart" aria-hidden="true"></i> Cart Abandon</a></li>
+
+                                    <li><a href="<?= base_url('admin/db2-sync') ?>" <?= urldecode(uri_string()) == 'admin/db2-sync' ? 'class="active"' : '' ?>><i class="fa fa-refresh" aria-hidden="true"></i> DB2 Sync</a></li>
+
+                                    <!-- B2B & FINANCE -->
+                                    <li class="header">B2B &amp; FINANCE</li>
+                                    <li><a href="<?= base_url('admin/claims') ?>" <?= urldecode(uri_string()) == 'admin/claims' ? 'class="active"' : '' ?>><i class="fa fa-file-text-o" aria-hidden="true"></i> Claims</a></li>
+
+                                    <!-- USERS -->
+                                    <li class="header">USERS</li>
+                                    <li><a href="<?= base_url('admin/adminusers') ?>" <?= urldecode(uri_string()) == 'admin/adminusers' ? 'class="active"' : '' ?>><i class="fa fa-users" aria-hidden="true"></i> <?= lang('admin_users') ?></a></li>
+                                    <li><a href="<?= base_url('admin/listvendors') ?>" <?= urldecode(uri_string()) == 'admin/listvendors' ? 'class="active"' : '' ?>><i class="fa fa-store" aria-hidden="true"></i> <?= lang('list_vendors') ?></a></li>
+
+                                    <!-- BLOG -->
                                     <?php if (in_array('blog', $activePages)) { ?>
                                         <li class="header"><?= lang('blog') ?></li>
                                         <li><a href="<?= base_url('admin/blogpublish') ?>" <?= urldecode(uri_string()) == 'admin/blogpublish' ? 'class="active"' : '' ?>><i class="fa fa-edit" aria-hidden="true"></i> <?= lang('publish_post') ?></a></li>
                                         <li><a href="<?= base_url('admin/blog') ?>" <?= urldecode(uri_string()) == 'admin/blog' ? 'class="active"' : '' ?>><i class="fa fa-th" aria-hidden="true"></i> <?= lang('posts') ?></a></li>
                                     <?php } ?>
+
+                                    <!-- TEXTUAL PAGES -->
                                     <?php
                                     if (!empty($textualPages)) {
                                         foreach ($nonDynPages as $nonDynPage) {
@@ -135,29 +153,23 @@
                                         <li class="header"><?= lang('TEXTUAL_PAGES') ?></li>
                                         <?php foreach ($textualPages as $textualPage) { ?>
                                             <li><a href="<?= base_url('admin/pageedit/' . $textualPage) ?>" <?= strpos(urldecode(uri_string()), $textualPage) ? 'class="active"' : '' ?>><i class="fa fa-edit" aria-hidden="true"></i> <?= strtoupper($textualPage) ?></a></li>
-                                            <?php
-                                        }
-                                    }
-                                    ?>
-                                    <li><a href="#"><i class="fa fa-wrench" aria-hidden="true"></i>Cart Abandon</a></li>
+                                        <?php } ?>
+                                    <?php } ?>
+
+                                    <!-- SETTINGS -->
                                     <li class="header"><?= lang('SETTINGS') ?></li>
                                     <li><a href="<?= base_url('admin/settings') ?>" <?= urldecode(uri_string()) == 'admin/settings' ? 'class="active"' : '' ?>><i class="fa fa-wrench" aria-hidden="true"></i> <?= lang('SETTINGS') ?></a></li>
                                     <li><a href="<?= base_url('admin/styling') ?>" <?= urldecode(uri_string()) == 'admin/styling' ? 'class="active"' : '' ?>><i class="fa fa-laptop" aria-hidden="true"></i> <?= lang('styling') ?></a></li>
                                     <li><a href="<?= base_url('admin/templates') ?>" <?= urldecode(uri_string()) == 'admin/templates' ? 'class="active"' : '' ?>><i class="fa fa-binoculars" aria-hidden="true"></i> <?= lang('templates') ?></a></li>
                                     <li><a href="<?= base_url('admin/titles') ?>" <?= urldecode(uri_string()) == 'admin/titles' ? 'class="active"' : '' ?>><i class="fa fa-font" aria-hidden="true"></i> <?= lang('titles_/_descriptions') ?></a></li>
                                     <li><a href="<?= base_url('admin/pages') ?>" <?= urldecode(uri_string()) == 'admin/pages' ? 'class="active"' : '' ?>><i class="fa fa-file" aria-hidden="true"></i> <?= lang('active_pages') ?></a></li>
-                                    <li><a href="<?= base_url('admin/emails') ?>" <?= urldecode(uri_string()) == 'admin/emails' ? 'class="active"' : '' ?>><i class="fa fa-envelope-o" aria-hidden="true"></i> <?= lang('subscribed_emails') ?></a></li>
-                                    <li><a href="<?= base_url('admin/history') ?>" <?= urldecode(uri_string()) == 'admin/history' ? 'class="active"' : '' ?>><i class="fa fa-history" aria-hidden="true"></i> <?= lang('activity_history') ?></a></li>
                                     <li><a href="<?= base_url('admin/taxsettings') ?>" <?= urldecode(uri_string()) == 'admin/taxsettings' ? 'class="active"' : '' ?>><i class="fa fa-percent" aria-hidden="true"></i> Tax Settings</a></li>
-                                    <li class="header">USERS</li>
-                                    <li><a href="<?= base_url('admin/adminusers') ?>" <?= urldecode(uri_string()) == 'admin/adminusers' ? 'class="active"' : '' ?>><i class="fa fa-user" aria-hidden="true"></i> <?= lang('admin_users') ?></a></li>
-                                    <li class="header"><?= lang('ADVANCED_SETTINGS') ?></li>
-                                    <li><a href="<?= base_url('admin/languages') ?>" <?= urldecode(uri_string()) == 'admin/languages' ? 'class="active"' : '' ?>><i class="fa fa-globe" aria-hidden="true"></i> <?= lang('languages') ?></a></li>
-                                    <li><a href="<?= base_url('admin/filemanager') ?>" <?= urldecode(uri_string()) == 'admin/filemanager' ? 'class="active"' : '' ?>><i class="fa fa-file-code-o" aria-hidden="true"></i> <?= lang('file_manager') ?></a></li>
                                     <li><a href="<?= base_url('admin/homesections') ?>" <?= urldecode(uri_string()) == 'admin/homesections' ? 'class="active"' : '' ?>><i class="fa fa-home" aria-hidden="true"></i> Home Sections</a></li>
 
-                                    <li class="header"><?= lang('VENDORS') ?></li>
-                                    <li><a href="<?= base_url('admin/listvendors') ?>" <?= urldecode(uri_string()) == 'admin/listvendors' ? 'class="active"' : '' ?>><i class="fa fa-user" aria-hidden="true"></i> <?= lang('list_vendors') ?></a></li>
+                                    <!-- ADVANCED SETTINGS -->
+                                    <li class="header"><?= lang('ADVANCED_SETTINGS') ?></li>
+                                    <li><a href="<?= base_url('admin/emails') ?>" <?= urldecode(uri_string()) == 'admin/emails' ? 'class="active"' : '' ?>><i class="fa fa-envelope-o" aria-hidden="true"></i> <?= lang('subscribed_emails') ?></a></li>
+                                    <li><a href="<?= base_url('admin/history') ?>" <?= urldecode(uri_string()) == 'admin/history' ? 'class="active"' : '' ?>><i class="fa fa-history" aria-hidden="true"></i> <?= lang('activity_history') ?></a></li>
                                 </ul>
                             </div>
                             <div class="col-sm-9 col-md-9 col-lg-10 col-sm-offset-3 col-md-offset-3 col-lg-offset-2">

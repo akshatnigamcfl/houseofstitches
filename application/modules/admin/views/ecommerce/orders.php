@@ -18,6 +18,7 @@
 .stat-icon.pend  { background: #FEF3C7; color: #D97706; }
 .stat-icon.proc  { background: #D1FAE5; color: #059669; }
 .stat-icon.rejt  { background: #FEE2E2; color: #DC2626; }
+.stat-icon.rtd   { background: #DBEAFE; color: #1D4ED8; }
 
 /* ── Toolbar ── */
 .ord-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; }
@@ -32,9 +33,13 @@
 .ord-sort { border: 1px solid #E5E7EB; border-radius: 6px; padding: 6px 10px; font-size: 12px; color: #374151; background: #fff; outline: none; cursor: pointer; }
 
 /* ── Table ── */
-.ord-table-wrap { background: #fff; border: 1px solid #E5E7EB; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.05); }
+.ord-table-wrap { background: #fff; border: 1px solid #E5E7EB; border-radius: 12px; overflow: visible; box-shadow: 0 1px 4px rgba(0,0,0,.05); }
 .ord-table { width: 100%; border-collapse: collapse; margin: 0; }
 .ord-table thead tr { border-bottom: 1px solid #F3F4F6; }
+.ord-table thead th:first-child { border-radius: 12px 0 0 0; }
+.ord-table thead th:last-child  { border-radius: 0 12px 0 0; }
+.ord-table tbody tr:last-child td:first-child { border-radius: 0 0 0 12px; }
+.ord-table tbody tr:last-child td:last-child  { border-radius: 0 0 12px 0; }
 .ord-table thead th { padding: 11px 16px; font-size: 11px; font-weight: 700; color: #9CA3AF; text-transform: uppercase; letter-spacing: .6px; background: #FAFAFA; white-space: nowrap; }
 .ord-table tbody tr { border-bottom: 1px solid #F9FAFB; transition: background .12s; }
 .ord-table tbody tr:last-child { border-bottom: none; }
@@ -62,6 +67,7 @@
 .ord-badge.pend { background: #FEF3C7; color: #D97706; }
 .ord-badge.proc { background: #D1FAE5; color: #059669; }
 .ord-badge.rejt { background: #FEE2E2; color: #DC2626; }
+.ord-badge.rtd  { background: #DBEAFE; color: #1D4ED8; }
 .ord-badge i { font-size: 9px; }
 
 /* ── Payment badge ── */
@@ -74,54 +80,19 @@
 .btn-icon.danger:hover { border-color: #DC2626; color: #DC2626; background: #FEE2E2; }
 
 /* ── Dropdown fix ── */
-.ord-actions .dropdown-menu { border-radius: 10px; border: 1px solid #E5E7EB; box-shadow: 0 8px 24px rgba(0,0,0,.12); padding: 6px; min-width: 170px; left: auto; right: 0; }
+.ord-actions .dropdown-menu { border-radius: 10px; border: 1px solid #E5E7EB; box-shadow: 0 8px 24px rgba(0,0,0,.12); padding: 6px; min-width: 170px; left: auto; right: 0; z-index: 9999; }
 .ord-actions .dropdown-menu > li > a { border-radius: 7px; padding: 8px 12px; font-size: 13px; color: #374151; display: flex; align-items: center; gap: 8px; }
 .ord-actions .dropdown-menu > li > a:hover { background: #F3F4F6; color: #111827; }
 .ord-actions .dropdown-menu > li > a.danger { color: #DC2626; }
 .ord-actions .dropdown-menu > li > a.danger:hover { background: #FEE2E2; }
 .ord-actions .dropdown-menu .divider { margin: 4px 0; }
 
-/* ── Modal ── */
-#orderDetailModal .modal-dialog { width: 820px; max-width: 96%; }
-#orderDetailModal .modal-content { border: none; border-radius: 14px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.22); }
-#orderDetailModal .modal-header { background: #111827; padding: 18px 24px; border: none; }
-#orderDetailModal .modal-header .modal-title { color: #fff; font-size: 16px; font-weight: 700; }
-#orderDetailModal .modal-header .close { color: #9CA3AF; opacity: 1; font-size: 20px; margin-top: 2px; }
-#orderDetailModal .modal-header .close:hover { color: #fff; }
-#orderDetailModal .modal-body { padding: 0; }
-#orderDetailModal .modal-footer { background: #F9FAFB; border-top: 1px solid #E5E7EB; padding: 14px 20px; }
-
-/* Modal left pane */
-.ord-modal-left { background: #F9FAFB; border-right: 1px solid #E5E7EB; padding: 22px; }
-.ord-modal-right { padding: 22px; }
-.ord-info-section { margin-bottom: 20px; }
-.ord-info-section-title { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .8px; color: #9CA3AF; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid #E5E7EB; }
-.ord-info-row { display: flex; align-items: flex-start; margin-bottom: 8px; }
-.ord-info-icon { width: 28px; flex-shrink: 0; color: #9CA3AF; font-size: 12px; padding-top: 2px; }
-.ord-info-text { font-size: 13px; color: #374151; line-height: 1.4; }
-.ord-info-text a { color: #4F46E5; text-decoration: none; }
-.ord-info-text a:hover { text-decoration: underline; }
-.ord-info-text strong { color: #111827; }
-
-/* Modal products table */
+/* ── Products inline table ── */
 .prod-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .prod-table th { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #9CA3AF; padding: 6px 10px; border-bottom: 1px solid #E5E7EB; background: #FAFAFA; }
 .prod-table td { padding: 10px 10px; border-bottom: 1px solid #F3F4F6; vertical-align: middle; color: #374151; }
 .prod-table tr:last-child td { border-bottom: none; }
-.prod-table .prod-img { width: 32px; height: 32px; object-fit: cover; border-radius: 4px; border: 1px solid #E5E7EB; }
-.prod-table .prod-name { font-weight: 600; color: #111827; }
-.prod-table .prod-meta { font-size: 11px; color: #9CA3AF; }
 .prod-table tfoot td { background: #111827; color: #fff; font-weight: 700; padding: 10px; }
-
-/* Modal footer buttons */
-.ord-modal-footer-actions { display: flex; gap: 8px; align-items: center; }
-.ord-status-btn { border: none; border-radius: 8px; padding: 7px 14px; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: all .15s; }
-.ord-status-btn.proc { background: #D1FAE5; color: #059669; }
-.ord-status-btn.proc:hover { background: #059669; color: #fff; }
-.ord-status-btn.pend { background: #FEF3C7; color: #D97706; }
-.ord-status-btn.pend:hover { background: #D97706; color: #fff; }
-.ord-status-btn.rejt { background: #FEE2E2; color: #DC2626; }
-.ord-status-btn.rejt:hover { background: #DC2626; color: #fff; }
 
 /* ── Settings ── */
 .settings-section-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #6B7280; margin-bottom: 14px; }
@@ -194,6 +165,10 @@
         <div class="stat-icon rejt"><i class="fa fa-times-circle"></i></div>
         <div><div class="stat-num"><?= $count_rejected ?></div><div class="stat-lbl">Rejected</div></div>
     </div>
+    <div class="ord-stat">
+        <div class="stat-icon rtd"><i class="fa fa-truck"></i></div>
+        <div><div class="stat-num"><?= $count_rtd ?></div><div class="stat-lbl">Ready to Dispatch</div></div>
+    </div>
 </div>
 
 <?php if (!empty($orders)) { ?>
@@ -205,6 +180,7 @@
         <span class="ord-filter-btn" data-filter="0">Pending <span class="count"><?= $count_pending ?></span></span>
         <span class="ord-filter-btn" data-filter="1">Processed <span class="count"><?= $count_processed ?></span></span>
         <span class="ord-filter-btn" data-filter="2">Rejected <span class="count"><?= $count_rejected ?></span></span>
+        <span class="ord-filter-btn" data-filter="3">Ready to Dispatch <span class="count"><?= $count_rtd ?></span></span>
     </div>
     <select class="ord-sort selectpicker changeOrder">
         <option <?= isset($_GET['order_by']) && $_GET['order_by'] == 'id' ? 'selected' : '' ?> value="id">Newest first</option>
@@ -227,9 +203,10 @@
         </thead>
         <tbody>
         <?php foreach ($orders as $tr) {
-            if ($tr['processed'] == 0)     { $bc = 'pend'; $bl = 'Pending';   $bi = 'fa-clock-o'; }
-            elseif ($tr['processed'] == 1) { $bc = 'proc'; $bl = 'Processed'; $bi = 'fa-check'; }
-            else                           { $bc = 'rejt'; $bl = 'Rejected';  $bi = 'fa-times'; }
+            if ($tr['processed'] == 0)      { $bc = 'pend'; $bl = 'Pending';           $bi = 'fa-clock-o'; }
+            elseif ($tr['processed'] == 1)  { $bc = 'proc'; $bl = 'Processed';         $bi = 'fa-check'; }
+            elseif ($tr['processed'] == 3)  { $bc = 'rtd';  $bl = 'Ready to Dispatch'; $bi = 'fa-truck'; }
+            else                            { $bc = 'rejt'; $bl = 'Rejected';           $bi = 'fa-times'; }
 
             // Pre-render product rows
             $arr_products = @unserialize($tr['products']);
@@ -245,13 +222,20 @@
                     $grand_qty += $qty;
                     $grand_amt += $wsp * $qty;
                     ?>
-                    <tr>
+                    <tr data-pid="<?= (int)($product['product_info']['id'] ?? 0) ?>" data-qty="<?= $qty ?>" data-name="<?= htmlspecialchars($details ? ($details->title ?? 'N/A') : 'Unknown') ?>">
                         <td><img src="<?= $img_url ?>" onerror="this.onerror=null;this.src='<?= $fallback ?>'" style="width:32px;height:32px;object-fit:cover;border-radius:4px;border:1px solid #E5E7EB;display:block;"></td>
                         <td>
                             <div class="prod-name"><?= $details ? htmlspecialchars($details->title ?? 'N/A') : '<em style="color:#9CA3AF;">Unknown</em>' ?></div>
                             <div class="prod-meta"><?= $details ? htmlspecialchars(trim(($details->color ?? '') . ' ' . ($details->size_range ?? ''))) : '' ?></div>
                         </td>
-                        <td style="text-align:center; font-weight:700; color:#374151;"><?= $qty ?> pcs</td>
+                        <td style="text-align:center; font-weight:700; color:#374151;">
+                            <?php if (!empty($product['set_count'])): ?>
+                                <?= (int)$product['set_count'] ?> set<?= $product['set_count'] > 1 ? 's' : '' ?>
+                                <div style="font-size:11px;color:#6B7280;font-weight:400;">(<?= $qty ?> pcs / <?= (int)($product['pieces_per_set'] ?? 0) ?> per set)</div>
+                            <?php else: ?>
+                                <?= $qty ?> pcs
+                            <?php endif; ?>
+                        </td>
                         <td style="text-align:right; color:#6B7280;">₹<?= number_format($wsp, 2) ?></td>
                         <td style="text-align:right; font-weight:700; color:#111827;">₹<?= number_format($wsp * $qty, 2) ?></td>
                     </tr>
@@ -262,7 +246,7 @@
         <tr class="order-row" data-status="<?= $tr['processed'] ?>" data-db-id="<?= $tr['id'] ?>">
             <!-- Order # -->
             <td>
-                <button type="button" class="ord-toggle" data-target="detail-row-<?= $tr['id'] ?>" title="Toggle items"><i class="fa fa-chevron-right"></i></button>
+                <a href="<?= base_url('admin/orders/detail/' . $tr['id']) ?>" class="btn-icon ord-toggle" title="View Details"><i class="fa fa-chevron-right"></i></a>
                 <div class="ord-id" style="display:inline-block;">#<?= $tr['order_id'] ?>
                     <?php if ($tr['viewed'] == 0) { ?><span class="ord-new">NEW</span><?php } ?>
                 </div>
@@ -277,6 +261,9 @@
             <td>
                 <div class="ord-date-main"><?= date('d M Y', $tr['date']) ?></div>
                 <div class="ord-date-time"><?= date('H:i', $tr['date']) ?></div>
+                <?php if (!empty($tr['expected_dispatch_date'])): ?>
+                <div class="ord-date-time" style="color:#D97706;" title="Expected dispatch date"><i class="fa fa-truck"></i> <?= htmlspecialchars($tr['expected_dispatch_date']) ?></div>
+                <?php endif; ?>
             </td>
             <!-- Customer -->
             <td>
@@ -305,14 +292,34 @@
                 <span class="ord-badge <?= $bc ?>" id="status-badge-<?= $tr['id'] ?>">
                     <i class="fa <?= $bi ?>"></i> <?= $bl ?>
                 </span>
+                <?php if (!empty($tr['tracking_id'])): ?>
+                <span class="ord-badge proc" style="margin-top:3px;font-size:10px;" title="<?= htmlspecialchars($tr['tracking_courier'].' / '.$tr['tracking_id']) ?>"><i class="fa fa-truck"></i></span>
+                <?php endif; ?>
+                <?php $pstatus = (int)($tr['payment_status'] ?? 0); ?>
+                <?php if ($pstatus === 2): ?>
+                <span class="ord-badge proc" style="margin-top:3px;font-size:10px;"><i class="fa fa-inr"></i> Paid</span>
+                <?php elseif ($pstatus === 1): ?>
+                <span class="ord-badge pend" style="margin-top:3px;font-size:10px;"><i class="fa fa-inr"></i> Partial</span>
+                <?php else: ?>
+                <span class="ord-badge rejt" style="margin-top:3px;font-size:10px;"><i class="fa fa-inr"></i> Unpaid</span>
+                <?php endif; ?>
+                <?php
+                $order_grs = $gr_by_order[$tr['id']] ?? [];
+                if (!empty($order_grs)):
+                    $has_pending = in_array('pending', $order_grs) || in_array('approved', $order_grs);
+                    $all_done    = !$has_pending;
+                ?>
+                <a href="<?= base_url('admin/orders/detail/' . $tr['id']) ?>#gr-section"
+                   class="ord-badge <?= $has_pending ? 'pend' : 'proc' ?>"
+                   style="margin-top:3px;font-size:10px;text-decoration:none;"
+                   title="<?= count($order_grs) ?> GR Return(s)">
+                    <i class="fa fa-undo"></i> GR<?= $has_pending ? ' !' : '' ?>
+                </a>
+                <?php endif; ?>
             </td>
             <!-- Actions -->
             <td>
                 <div class="ord-actions">
-                    <button class="btn-icon" title="View Details"
-                        onclick="openOrderDetail(<?= $tr['id'] ?>,<?= $tr['order_id'] ?>,'<?= addslashes(htmlspecialchars(trim($tr['first_name'].' '.$tr['last_name']))) ?>','<?= addslashes($tr['phone'] ?? '') ?>','<?= addslashes($tr['email'] ?? '') ?>','<?= addslashes(trim(($tr['city'] ?? '').($tr['city'] ? ', ' : '').($tr['address'] ?? ''))) ?>','<?= addslashes($tr['payment_type'] ?? '') ?>','<?= date('d M Y, H:i', $tr['date']) ?>','<?= addslashes($tr['notes'] ?? '') ?>',<?= $tr['processed'] ?>,'<?= htmlentities($tr['products']) ?>','<?= addslashes($tr['email'] ?? '') ?>')">
-                        <i class="fa fa-eye"></i>
-                    </button>
                     <div class="btn-group dropup">
                         <button type="button" class="btn-icon dropdown-toggle" data-toggle="dropdown" title="Change status">
                             <i class="fa fa-ellipsis-v"></i>
@@ -321,6 +328,11 @@
                             <li><a href="javascript:void(0);" onclick="changeOrdersOrderStatus(<?= $tr['id'] ?>,1,'<?= htmlentities($tr['products']) ?>','<?= $tr['email'] ?>')">
                                 <i class="fa fa-check" style="color:#059669;width:14px;"></i> Mark Processed
                             </a></li>
+                            <?php if ($tr['processed'] == 1): ?>
+                            <li><a href="<?= base_url('admin/orders/detail/'.$tr['id']) ?>" style="color:#1D4ED8;">
+                                <i class="fa fa-truck" style="color:#1D4ED8;width:14px;"></i> Ready to Dispatch
+                            </a></li>
+                            <?php endif; ?>
                             <li><a href="javascript:void(0);" onclick="changeOrdersOrderStatus(<?= $tr['id'] ?>,0)">
                                 <i class="fa fa-clock-o" style="color:#D97706;width:14px;"></i> Mark Pending
                             </a></li>
@@ -335,37 +347,6 @@
                             </a></li>
                         </ul>
                     </div>
-                </div>
-            </td>
-        </tr>
-        <!-- Inline expandable product detail row -->
-        <tr class="order-detail-row" id="detail-row-<?= $tr['id'] ?>" data-status="<?= $tr['processed'] ?>">
-            <td colspan="6">
-                <div class="order-inline-wrap">
-                    <table class="prod-table">
-                        <thead>
-                            <tr>
-                                <th style="width:48px;"></th>
-                                <th>Product</th>
-                                <th style="text-align:center;width:60px;">Qty</th>
-                                <th style="text-align:right;width:80px;">WSP</th>
-                                <th style="text-align:right;width:90px;">Total</th>
-                            </tr>
-                        </thead>
-                        <tbody><?= $products_html ?></tbody>
-                        <?php if ($grand_qty > 0) { ?>
-                        <tfoot>
-                            <tr>
-                                <td colspan="2" style="text-align:right;background:#111827;color:#fff;padding:8px 10px;font-size:12px;font-weight:700;">
-                                    <?= $grand_qty ?> items total
-                                </td>
-                                <td style="text-align:center;background:#111827;color:#fff;padding:8px 10px;font-weight:800;"><?= $grand_qty ?></td>
-                                <td style="background:#111827;"></td>
-                                <td style="text-align:right;background:#111827;color:#fff;padding:8px 10px;font-weight:800;">₹<?= number_format($grand_amt, 2) ?></td>
-                            </tr>
-                        </tfoot>
-                        <?php } ?>
-                    </table>
                 </div>
             </td>
         </tr>
@@ -461,118 +442,17 @@
 
 </div><!-- end .ord-page -->
 
-<!-- ── Order Detail Modal ── -->
-<div class="modal fade" id="orderDetailModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog" role="document" style="width:820px;max-width:96%;margin:40px auto;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal">&times;</button>
-                <div class="modal-title">
-                    Order <strong id="modal-order-num"></strong>
-                    &nbsp;<span id="modal-status-badge"></span>
-                </div>
-            </div>
-            <div class="modal-body">
-                <div class="row" style="margin:0;">
-                    <div class="col-sm-4 ord-modal-left" style="padding:22px;">
-                        <div class="ord-info-section">
-                            <div class="ord-info-section-title">Customer</div>
-                            <div class="ord-info-row"><div class="ord-info-icon"><i class="fa fa-user"></i></div><div class="ord-info-text" id="m-name"></div></div>
-                            <div class="ord-info-row"><div class="ord-info-icon"><i class="fa fa-phone"></i></div><div class="ord-info-text" id="m-phone"></div></div>
-                            <div class="ord-info-row"><div class="ord-info-icon"><i class="fa fa-envelope"></i></div><div class="ord-info-text" id="m-email"></div></div>
-                            <div class="ord-info-row"><div class="ord-info-icon"><i class="fa fa-map-marker"></i></div><div class="ord-info-text" id="m-address"></div></div>
-                        </div>
-                        <div class="ord-info-section">
-                            <div class="ord-info-section-title">Order Info</div>
-                            <div class="ord-info-row"><div class="ord-info-icon"><i class="fa fa-credit-card"></i></div><div class="ord-info-text" id="m-payment"></div></div>
-                            <div class="ord-info-row"><div class="ord-info-icon"><i class="fa fa-calendar"></i></div><div class="ord-info-text" id="m-date"></div></div>
-                            <div class="ord-info-row" id="m-notes-wrap" style="display:none;"><div class="ord-info-icon"><i class="fa fa-sticky-note"></i></div><div class="ord-info-text" id="m-notes"></div></div>
-                        </div>
-                    </div>
-                    <div class="col-sm-8 ord-modal-right" style="padding:22px;">
-                        <div class="ord-info-section-title">Products</div>
-                        <div class="table-responsive" style="margin-top:10px;">
-                            <table class="prod-table">
-                                <thead>
-                                    <tr>
-                                        <th style="width:50px;"></th>
-                                        <th>Product</th>
-                                        <th style="text-align:center;width:60px;">Qty</th>
-                                        <th style="text-align:right;width:70px;">WSP</th>
-                                        <th style="text-align:right;width:80px;">Total</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="modal-products-body"></tbody>
-                                <tfoot id="modal-products-foot"></tfoot>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <div class="pull-left ord-modal-footer-actions">
-                    <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#9CA3AF;margin-right:4px;">Status:</span>
-                    <button class="ord-status-btn proc" id="modal-btn-proc"><i class="fa fa-check"></i> Processed</button>
-                    <button class="ord-status-btn pend" id="modal-btn-pend"><i class="fa fa-clock-o"></i> Pending</button>
-                    <button class="ord-status-btn rejt" id="modal-btn-rejt"><i class="fa fa-times"></i> Rejected</button>
-                </div>
-                <button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-</div>
 
 <script src="<?= base_url('assets/js/bootstrap-toggle.min.js') ?>"></script>
 <script>
-// ── Inline row toggle (only needs jQuery, available immediately) ──
-$(document).on('click', '.ord-toggle', function() {
-    var targetId = $(this).data('target');
-    $(this).toggleClass('open');
-    $('#' + targetId).toggle();
-});
-
 // ── Filter pills ──
 $(document).on('click', '.ord-filter-btn', function() {
     $('.ord-filter-btn').removeClass('active');
     $(this).addClass('active');
     var f = $(this).data('filter');
     var $rows = $('#ordersTable tbody tr.order-row');
-    $('#ordersTable tbody tr.order-detail-row').hide();
-    $('.ord-toggle').removeClass('open');
     f === 'all' ? $rows.show() : $rows.hide().filter('[data-status="' + f + '"]').show();
 });
-
-// ── Open order detail modal (global — called from inline onclick) ──
-window._modalOpenDbId = null;
-window.openOrderDetail = function(dbId, ordNum, name, phone, email, address, payment, date, notes, status, products, userEmail) {
-    window._modalOpenDbId = dbId;
-    var badgeMap = {
-        0: '<span class="ord-badge pend"><i class="fa fa-clock-o"></i> Pending</span>',
-        1: '<span class="ord-badge proc"><i class="fa fa-check"></i> Processed</span>',
-        2: '<span class="ord-badge rejt"><i class="fa fa-times"></i> Rejected</span>'
-    };
-    $('#modal-order-num').text('#' + ordNum);
-    $('#modal-status-badge').html(badgeMap[status] || '');
-    $('#m-name').html('<strong>' + name + '</strong>');
-    $('#m-phone').html('<a href="tel:' + phone + '">' + phone + '</a>');
-    $('#m-email').html('<a href="mailto:' + email + '">' + email + '</a>');
-    $('#m-address').text(address || '—');
-    $('#m-payment').html('<span class="pay-badge">' + payment + '</span>');
-    $('#m-date').text(date);
-    if (notes) { $('#m-notes').text(notes); $('#m-notes-wrap').show(); }
-    else { $('#m-notes-wrap').hide(); }
-
-    var $bodyRows = $('#detail-row-' + dbId + ' tbody tr').clone();
-    var $footRow  = $('#detail-row-' + dbId + ' tfoot tr').clone();
-    $('#modal-products-body').html($bodyRows.length ? $bodyRows : '<tr><td colspan="5" style="text-align:center;color:#9CA3AF;padding:20px;">No products</td></tr>');
-    $('#modal-products-foot').html($footRow.length ? $footRow : '');
-
-    $('#modal-btn-proc').off('click').on('click', function() { changeOrdersOrderStatus(dbId, 1, products, userEmail); });
-    $('#modal-btn-pend').off('click').on('click', function() { changeOrdersOrderStatus(dbId, 0); });
-    $('#modal-btn-rejt').off('click').on('click', function() { changeOrdersOrderStatus(dbId, 2); });
-
-    $('#orderDetailModal').modal('show');
-};
 
 // ── Wrap changeOrdersOrderStatus AFTER mine_admin.js loads ──
 $(window).on('load', function() {
@@ -583,7 +463,8 @@ $(window).on('load', function() {
             var badgeMap = {
                 0: '<span class="ord-badge pend"><i class="fa fa-clock-o"></i> Pending</span>',
                 1: '<span class="ord-badge proc"><i class="fa fa-check"></i> Processed</span>',
-                2: '<span class="ord-badge rejt"><i class="fa fa-times"></i> Rejected</span>'
+                2: '<span class="ord-badge rejt"><i class="fa fa-times"></i> Rejected</span>',
+                3: '<span class="ord-badge rtd"><i class="fa fa-truck"></i> Ready to Dispatch</span>'
             };
             setTimeout(function() {
                 var $old = $('#status-badge-' + id);

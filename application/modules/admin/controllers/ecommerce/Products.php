@@ -245,6 +245,7 @@ public function do_upload()
         $search_title = null;
         if ($this->input->get('search_title') !== NULL) {
             $search_title = $this->input->get('search_title');
+            $page = 0; // reset pagination when searching
             $_SESSION['filter']['search_title'] = $search_title;
             $this->saveHistory('Search for product title - ' . $search_title);
         }
@@ -266,9 +267,23 @@ public function do_upload()
           
         $data['products_lang'] = $products_lang = $this->session->userdata('admin_lang_products');
         $rowscount = $this->Products_model->productsCount($search_title, $category);
-        $data['products'] = $this->Products_model->getproducts($this->num_rows, $page, $search_title, $orderby, $category, $vendor); 
-        //$data['products'] = $this->Products_model->getproducts('', $page, $search_title, $orderby, $category, $vendor); 
+        $data['products'] = $this->Products_model->getproducts($this->num_rows, $page, $search_title, $orderby, $category, $vendor);
+        //$data['products'] = $this->Products_model->getproducts('', $page, $search_title, $orderby, $category, $vendor);
         $data['links_pagination'] = pagination('admin/products', $rowscount, $this->num_rows, 3);
+
+        // Fetch barcodes for listed products
+        $data['barcode_map'] = [];
+        if ($this->db->table_exists('product_barcodes') && !empty($data['products'])) {
+            $product_ids = array_column((array)$data['products'], 'id');
+            $bc_rows = $this->db->select('product_id, barcode, size, stock_qty')->where_in('product_id', $product_ids)->order_by('size', 'ASC')->get('product_barcodes')->result_array();
+            foreach ($bc_rows as $r) {
+                $data['barcode_map'][$r['product_id']][] = [
+                    'barcode'   => $r['barcode'],
+                    'size'      => $r['size'],
+                    'stock_qty' => $r['stock_qty'],
+                ];
+            }
+        }
         $data['num_shop_art'] = $this->Products_model->numShopproducts();
         $data['languages'] = $this->Languages_model->getLanguages();
         $data['shop_categories'] = $this->Categories_model->getShopCategories(null, null, 2);

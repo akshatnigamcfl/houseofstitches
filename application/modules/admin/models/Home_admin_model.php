@@ -92,6 +92,53 @@ class Home_admin_model extends CI_Model
         );
     }
 
+    public function getOutOfStockCount()
+    {
+        return $this->db->where('quantity', 0)->where('visibility', 1)->count_all_results('products');
+    }
+
+    public function getPendingOrdersCount()
+    {
+        return (int)$this->db->where('processed', 0)->count_all_results('orders');
+    }
+
+    public function getTotalUsersCount()
+    {
+        return (int)$this->db->where('status', 1)->count_all_results('users_public');
+    }
+
+    public function getRestockAlerts($limit = 15)
+    {
+        $this->db->select('products.id, products.quantity, products.article_number, products_translations.title');
+        $this->db->join('products_translations', 'products_translations.for_id = products.id', 'left');
+        $this->db->where('products_translations.abbr', MY_DEFAULT_LANGUAGE_ABBR);
+        $this->db->where('products.visibility', 1);
+        $this->db->where('products.quantity <=', 10);
+        $this->db->order_by('products.quantity', 'asc');
+        $this->db->limit($limit);
+        return $this->db->get('products')->result_array();
+    }
+
+    public function getMostOrderedProducts($limit = 10)
+    {
+        $sql = "SELECT p.id, p.url, p.article_number, pt.title,
+                       COUNT(oi.product_id) AS order_count,
+                       SUM(oi.quantity) AS total_qty
+                FROM cart_items oi
+                JOIN products p ON p.id = oi.product_id
+                JOIN products_translations pt ON pt.for_id = p.id AND pt.abbr = ?
+                GROUP BY oi.product_id, p.id, p.url, p.article_number, pt.title
+                ORDER BY order_count DESC
+                LIMIT ?";
+        return $this->db->query($sql, [MY_DEFAULT_LANGUAGE_ABBR, $limit])->result_array();
+    }
+
+    public function getTotalRevenue()
+    {
+        $row = $this->db->select('SUM(billing_amount) as total')->where('processed >', 0)->get('orders')->row_array();
+        return $row['total'] ?? 0;
+    }
+
     /*
      * Some statistics methods for home page of
      * administration

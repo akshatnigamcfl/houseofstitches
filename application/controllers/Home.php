@@ -25,6 +25,7 @@ class Home extends MY_Controller
         redirect('shopping-cart');
     }
     public function prebooking(){
+        if (!is_logged_in()) { redirect('login'); }
                 $arrSeo = $this->Public_model->getSeo('home');
         $head['title'] = @$arrSeo['title'];
         $head['description'] = @$arrSeo['description'];
@@ -66,7 +67,7 @@ $results = $query->result(); //echo $this->db->last_query(); die;
         }
         $product_id = (int)$_POST['product_id'];
         $set_quanity = (int)get_product_quantity($product_id);
-        if ($set_quanity <= 0) $set_quanity = 1;
+        if ($set_quanity <= 0) $set_quanity = 1; // fallback: treat as 1-piece set
         $row = $this->db->get_where('cart_items', ['product_id' => $product_id, 'session_id' => user_id()])->row();
         if (!$row) { echo json_encode(['success' => true]); exit(); }
         $new_qty = (int)$row->quantity - $set_quanity;
@@ -82,36 +83,90 @@ $results = $query->result(); //echo $this->db->last_query(); die;
 
     }
     public function barcode_scan() {
-                $data = array();
+        $data = array();
         $head = array();
-        // Show ALL errors
-        error_reporting(E_ALL);
-        ini_set('display_errors', 1);
-        ini_set('display_startup_errors', 1);
-        ini_set('log_errors', 1);
         $this->render('barcode_scanner', $head, $data);
-   // $this->load->view('templates/redlabel/barcode_scanner');
-}
+    }
 
 public function scan_result() {
-    $code = $this->input->post('barcode');
-     //echo json_encode(['success' => true, 'product' => $code]); die;
-    // Validate & process scanned code
-    if ($code) {  // Your array
-        $data = $this->db->get_where('products_translations', ['bar_code' => $code])->row_array();
-                 $count = get_product_quantity($data['id']);
-            $count = ($count=='') ? '4' : $count;
-            for ($i = 0; $i < $count; $i++) {
-                // code to run each time
-            @$_SESSION['shopping_cart'][] = (int) $data['id'];
-            }
-        
-
-        //print_r($data); echo $data['id']; die;
-        echo json_encode(['success' => true, 'product' => $data['id']]);
-    } else {
-        echo json_encode(['success' => false, 'message' => 'Invalid barcode']);
+    $code = trim($this->input->post('barcode'));
+    if (!$code) {
+        echo json_encode(['success' => false, 'message' => 'No code provided']);
+        return;
     }
+
+    // 1. Try product_barcodes table (synced from Trn_ScanCode — most reliable)
+    $product = null;
+    if ($this->db->table_exists('product_barcodes')) {
+        $pb = $this->db->get_where('product_barcodes', ['barcode' => $code])->row_array();
+        if (!empty($pb)) {
+            $product = $this->db
+                ->select('products.id, products_translations.wsp, products_translations.msp')
+                ->join('products_translations', 'products_translations.for_id = products.id', 'left')
+                ->where('products.id', (int)$pb['product_id'])
+                ->where('products.visibility', 1)
+                ->get('products')
+                ->row_array();
+        }
+    }
+
+    // 2. Fall back to bar_code in products_translations
+    if (empty($product)) {
+        $product = $this->db
+            ->select('products.id, products_translations.wsp, products_translations.msp')
+            ->join('products_translations', 'products_translations.for_id = products.id', 'left')
+            ->where('products_translations.bar_code', $code)
+            ->where('products.visibility', 1)
+            ->get('products')
+            ->row_array();
+    }
+
+    // 3. Fall back to article_number
+    if (empty($product)) {
+        $product = $this->db
+            ->select('products.id, products_translations.wsp, products_translations.msp')
+            ->join('products_translations', 'products_translations.for_id = products.id', 'left')
+            ->where('products.article_number', $code)
+            ->where('products.visibility', 1)
+            ->get('products')
+            ->row_array();
+    }
+
+    if (empty($product)) {
+        echo json_encode(['success' => false, 'message' => 'Product not found']);
+        return;
+    }
+
+    $product_id = (int)$product['id'];
+    $session_id = user_id();
+
+    $set_qty = (int)get_product_quantity($product_id);
+    if ($set_qty <= 0) $set_qty = 1;
+
+    $existing = $this->db->get_where('cart_items', [
+        'session_id' => $session_id,
+        'product_id' => $product_id,
+    ])->row_array();
+
+    if ($existing) {
+        $this->db->where(['session_id' => $session_id, 'product_id' => $product_id])
+                 ->update('cart_items', [
+                     'quantity'     => (int)$existing['quantity'] + $set_qty,
+                     'set_quantity' => (int)$existing['set_quantity'] + 1,
+                 ]);
+    } else {
+        $this->db->insert('cart_items', [
+            'session_id'   => $session_id,
+            'product_id'   => $product_id,
+            'quantity'     => $set_qty,
+            'price'        => 0,
+            'mrp'          => $product['msp'] ?? 0,
+            'wsp'          => $product['wsp'] ?? 0,
+            'set_quantity' => 1,
+        ]);
+    }
+
+    echo json_encode(['success' => true, 'product' => $product_id]);
 }
     public function update_product() {
         $barcode = $this->input->post('barcode');
@@ -178,7 +233,8 @@ public function scan_result() {
     }
     
     public function shop($page = 0)
-    {   
+    {
+        if (!is_logged_in()) { redirect('login'); }
         $data = array();
         $head = array();
         $arrSeo = $this->Public_model->getSeo('shop');
@@ -194,8 +250,10 @@ public function scan_result() {
         $data['showOutOfStock'] = $this->Home_admin_model->getValueStore('outOfStock');
         $data['shippingOrder'] = $this->Home_admin_model->getValueStore('shippingOrder');
         $data['filter_seasons'] = $this->Public_model->getDistinctFilterValues('season');
-        $data['filter_genders'] = $this->Public_model->getDistinctFilterValues('gender');
-        $data['filter_sizes']   = $this->Public_model->getDistinctFilterValues('size_range');
+        $data['filter_genders']          = $this->Public_model->getDistinctFilterValues('gender');
+        $data['filter_sizes']            = $this->Public_model->getDistinctFilterValues('size_range');
+        $data['filter_fabric_categories'] = $this->Public_model->getDistinctFilterValues('fabric_category');
+        $data['filter_brands']           = $this->Public_model->getDistinctFilterValues('brand');
         $data['products'] = $this->Public_model->getProducts($this->num_rows, $page, $_GET);
           //echo '<pre>'; print_r( $data['products']);
         $product_ids = array_column($data['products'], 'id');
@@ -213,7 +271,7 @@ public function scan_result() {
         $this->render('shop', $head, $data);
     }
     public function new_arrivals($page = 0){
-       
+        if (!is_logged_in()) { redirect('login'); }
         $data = array();
         $head = array();
         $arrSeo = $this->Public_model->getSeo('shop');
@@ -236,7 +294,7 @@ public function scan_result() {
     } 
     
     public function offer($page = 0){
-       
+        if (!is_logged_in()) { redirect('login'); }
         $data = array();
         $head = array();
         $arrSeo = $this->Public_model->getSeo('shop');
@@ -322,6 +380,7 @@ public function scan_result() {
 
     public function viewProduct($id)
     {
+        if (!is_logged_in()) { redirect('login'); }
         $data = array();
         $head = array();
         $data['product'] = $this->Public_model->getOneProduct($id);
@@ -329,6 +388,29 @@ public function scan_result() {
             show_404();
         }
         $data['sameCagegoryProducts'] = $this->Public_model->sameCagegoryProducts($data['product']['shop_categorie'], $id);
+        // Load per-size barcodes for synced products
+        $data['product_barcodes'] = [];
+        if ($this->db->table_exists('product_barcodes')) {
+            $data['product_barcodes'] = $this->db
+                ->select('size, stock_qty, barcode')
+                ->where('product_id', $id)
+                ->order_by('size', 'ASC')
+                ->get('product_barcodes')->result_array();
+        }
+        // Load color siblings (other colors of the same item code)
+        $data['color_siblings'] = [];
+        $parent_id = (int)($data['product']['parent_id'] ?? 0);
+        if ($parent_id > 0) {
+            $siblings = $this->db
+                ->select('products.id, products.url, products.quantity, products_translations.color')
+                ->join('products_translations', 'products_translations.for_id = products.id', 'left')
+                ->where('products_translations.abbr', MY_DEFAULT_LANGUAGE_ABBR)
+                ->where('products.parent_id', $parent_id)
+                ->where('products.id !=', $id)
+                ->where('products.itm_synced', 1)
+                ->get('products')->result_array();
+            $data['color_siblings'] = $siblings;
+        }
         // Load variations
         $variations_map = $this->Public_model->getVariationsForProducts([$id]);
         $data['variations'] = isset($variations_map[$id]) ? $variations_map[$id] : [];
@@ -548,23 +630,20 @@ public function scan_result() {
     
     public function account()
     {
-        $this->load->model(array('Orders_model'));
+        if (!is_logged_in()) { redirect('login'); }
         $data = array();
         $head = array();
-        $data['clients'] = $this->db->query('SELECT * FROM `users_public` WHERE FIND_IN_SET(?, agents)', [(string)user_id()])->result();
-        $head['title'] = 'Administration - Orders';
-        $head['description'] = '!';
+        $uid = (int)user_id();
+        $data['clients'] = $uid > 0
+            ? $this->db->query("SELECT * FROM `users_public` WHERE FIND_IN_SET({$uid}, `agents`)")->result()
+            : [];
+        $head['title'] = 'My Account';
+        $head['description'] = '';
         $head['keywords'] = '';
-
-        $order_by = null;
-        if (isset($_GET['order_by'])) {
-            $order_by = $_GET['order_by'];
-        }
-        $data['orders'] = $this->Orders_model->orders($this->num_rows, $page=null, $order_by);
 
         // Current user's own orders (My Orders tab)
         $uid = (int)user_id();
-        $this->db->select('orders.id, orders.order_id, orders.date, orders.processed, orders.products, orders.payment_type');
+        $this->db->select('orders.id, orders.order_id, orders.date, orders.processed, orders.products, orders.payment_type, orders.tracking_courier, orders.tracking_id, orders.billing_amount, orders.paid_amount, orders.payment_status, orders.dispatch_products');
         $this->db->where('orders.user_id', $uid);
         $this->db->order_by('orders.id', 'DESC');
         $my_orders_raw = $this->db->get('orders')->result_array();
@@ -578,9 +657,21 @@ public function scan_result() {
         $data['my_stats']  = $my_stats;
 
         // Current user's type for role-based tab visibility
-        $user_row = $this->db->select('type')->where('id', $uid)->get('users_public')->row();
+        $user_row = $this->db->select('type, agents, percent')->where('id', $uid)->get('users_public')->row();
         $type_map = [1 => 'agent', 2 => 'distributor', 3 => 'wholesaler', 4 => 'retailer'];
         $data['user_role'] = isset($user_row->type) ? ($type_map[$user_row->type] ?? 'retailer') : 'retailer';
+
+        // Retailers connected to a distributor/wholesaler don't see finance tabs (ledger/payments)
+        $data['hide_finance_tabs'] = false;
+        if ($data['user_role'] === 'retailer' && !empty($user_row->agents)) {
+            $parent_ids = array_filter(array_map('intval', explode(',', $user_row->agents)));
+            if (!empty($parent_ids)) {
+                $parent = $this->db->select('type')->where('id', reset($parent_ids))->get('users_public')->row();
+                if ($parent && in_array((int)$parent->type, [2, 3])) {
+                    $data['hide_finance_tabs'] = true;
+                }
+            }
+        }
 
         $data['product'] = $this-> Wishlist_model->get_wishlist();
         $data['user_addresses'] = $this->_get_user_addresses();
@@ -589,25 +680,461 @@ public function scan_result() {
         $client_ids = array_map(function($c) { return (int)$c->id; }, $data['clients']);
         $retailer_orders = [];
         $retailer_stats  = ['total' => 0, 'pending' => 0, 'shipped' => 0, 'delivered' => 0];
+
+        // Get current user's percent for billing recalculation
+        $my_percent = (float)($user_row->percent ?? 0);
+        $my_type    = (int)($user_row->type ?? 0);
+
         if (!empty($client_ids)) {
-            $this->db->select('orders.id, orders.order_id, orders.date, orders.processed, orders.products, orders.payment_type, users_public.name as retailer_name');
+            $this->db->select('orders.id, orders.order_id, orders.date, orders.processed, orders.products, orders.dispatch_products, orders.payment_type, orders.billing_amount, orders.billed_to_user_id, users_public.name as retailer_name, users_public.id as retailer_id');
             $this->db->join('users_public', 'users_public.id = orders.user_id', 'left');
             $this->db->where_in('orders.user_id', $client_ids);
             $this->db->order_by('orders.id', 'DESC');
-            $retailer_orders = $this->db->get('orders')->result_array();
-            $retailer_stats['total'] = count($retailer_orders);
-            foreach ($retailer_orders as $ro) {
+            $retailer_orders_raw = $this->db->get('orders')->result_array();
+            $retailer_stats['total'] = count($retailer_orders_raw);
+            foreach ($retailer_orders_raw as &$ro) {
                 if ($ro['processed'] == 0)      $retailer_stats['pending']++;
                 elseif ($ro['processed'] == 1)  $retailer_stats['shipped']++;
                 elseif ($ro['processed'] == 2)  $retailer_stats['delivered']++;
+
+                // Recalculate billing_amount for distributor/wholesaler if it was stored as full price
+                if (in_array($my_type, [2, 3]) && $my_percent > 0) {
+                    $raw_total = 0;
+                    $prods = @unserialize($ro['products']);
+                    if (is_array($prods)) {
+                        foreach ($prods as $p) {
+                            $wsp = (float)($p['product_info']['wsp'] ?? 0);
+                            if ($wsp <= 0) $wsp = (float)($p['product_info']['price'] ?? 0);
+                            $raw_total += $wsp * (int)($p['product_quantity'] ?? 1);
+                        }
+                    }
+                    if ($raw_total > 0) {
+                        $correct = round($raw_total * (1 - $my_percent / 100), 2);
+                        // If stored billing_amount differs, update the record
+                        if (abs((float)$ro['billing_amount'] - $correct) > 0.01 || (int)$ro['billed_to_user_id'] !== $uid) {
+                            $this->db->where('id', (int)$ro['id'])->update('orders', [
+                                'billing_amount'    => $correct,
+                                'billed_to_user_id' => $uid,
+                            ]);
+                        }
+                        $ro['billing_amount'] = $correct;
+                    }
+                }
             }
+            unset($ro);
+            $retailer_orders = $retailer_orders_raw;
         }
         $data['retailer_orders'] = $retailer_orders;
         $data['retailer_stats']  = $retailer_stats;
 
+        // GR requests submitted by this user
+        $this->_ensure_gr_table();
+        $data['gr_requests'] = $this->db->table_exists('gr_requests')
+            ? $this->db->where('submitted_by', $uid)->order_by('id', 'DESC')->get('gr_requests')->result_array()
+            : [];
+        // Index by order_id for quick lookup in view
+        $data['gr_by_order'] = [];
+        foreach ($data['gr_requests'] as $gr) {
+            $data['gr_by_order'][(int)$gr['order_id']] = $gr;
+        }
+
+        // ── Payments tab data ──
+        // Bills = user's own orders + orders placed by their clients (retailers)
+        $bill_user_ids = array_unique(array_merge([$uid], $client_ids));
+        $all_bills = $this->db
+            ->select('orders.id, orders.order_id, orders.date, orders.billing_amount, orders.paid_amount, orders.payment_status, orders.processed, orders.products, users_public.name as placed_by')
+            ->join('users_public', 'users_public.id = orders.user_id', 'left')
+            ->where_in('orders.user_id', $bill_user_ids)
+            ->order_by('orders.id', 'DESC')
+            ->get('orders')->result_array();
+
+        $pay_stats = ['total_bills' => count($all_bills), 'pending' => 0.0, 'cleared' => 0.0];
+        $payment_bills = [];
+        foreach ($all_bills as &$b) {
+            // Recalculate billing_amount for distributor/wholesaler orders if stored at wrong amount
+            if (in_array($my_type, [2, 3]) && $my_percent > 0) {
+                $raw_total = 0;
+                $prods = @unserialize($b['products']);
+                if (is_array($prods)) {
+                    foreach ($prods as $p) {
+                        $wsp = (float)($p['product_info']['wsp'] ?? 0);
+                        if ($wsp <= 0) $wsp = (float)($p['product_info']['price'] ?? 0);
+                        $raw_total += $wsp * (int)($p['product_quantity'] ?? 1);
+                    }
+                }
+                if ($raw_total > 0) {
+                    $correct = round($raw_total * (1 - $my_percent / 100), 2);
+                    if (abs((float)$b['billing_amount'] - $correct) > 0.01) {
+                        $this->db->where('id', (int)$b['id'])->update('orders', ['billing_amount' => $correct, 'billed_to_user_id' => $uid]);
+                    }
+                    $b['billing_amount'] = $correct;
+                }
+            }
+            $amt    = (float)($b['billing_amount'] ?? 0);
+            $paid   = (float)($b['paid_amount']    ?? 0);
+            $status = (int)($b['payment_status']   ?? 0);
+            if ($status === 2) {
+                $pay_stats['cleared'] += $amt;
+            } else {
+                $pay_stats['pending'] += max(0, $amt - $paid);
+                $payment_bills[] = $b;
+            }
+        }
+        unset($b);
+
+        // Payment history from payments table (if it exists)
+        // Include payments from all clients (their user_id or order belonging to them)
+        $payment_history = [];
+        $data['pending_receipt_order_ids'] = [];
+        if ($this->db->table_exists('payments')) {
+            // Build all_ids_str for payment history lookup (uid + client ids)
+            $_ph_client_rows = $this->db->query(
+                "SELECT id FROM `users_public` WHERE FIND_IN_SET({$uid}, `agents`)"
+            )->result_array();
+            $_ph_all_ids = array_unique(array_merge([$uid], array_map('intval', array_column($_ph_client_rows, 'id'))));
+            $_ph_ids_str = implode(',', $_ph_all_ids);
+            // Fetch all payments (pending + verified + rejected) on orders belonging to this user or their clients
+            $payment_history = $this->db->query(
+                "SELECT p.*, o.order_id as order_ref, up.name as submitted_by
+                 FROM payments p
+                 JOIN orders o ON o.id = p.order_id
+                 LEFT JOIN users_public up ON up.id = p.user_id
+                 WHERE o.user_id IN ({$_ph_ids_str})
+                 ORDER BY p.id DESC
+                 LIMIT 50"
+            )->result_array();
+
+            // Build set of order DB IDs that already have a pending receipt (to hide Submit button)
+            $data['pending_receipt_order_ids'] = array_column(
+                array_filter($payment_history, function($p) { return $p['status'] === 'pending'; }),
+                'order_id'
+            );
+        }
+
+        $data['payment_bills']   = $payment_bills;
+        $data['payment_history'] = $payment_history;
+        $data['pay_stats']       = $pay_stats;
+
+        // ── Ledger: collect this user + all their clients ──
+        $this->load->helper('ledger_helper');
+        _ensure_ledger_table($this);
+
+        // Get all client IDs (users whose agents field contains this user's ID)
+        $client_rows = $this->db->query(
+            "SELECT id FROM `users_public` WHERE FIND_IN_SET({$uid}, `agents`)"
+        )->result_array();
+        $client_ids  = array_column($client_rows, 'id');
+        $all_ids     = array_merge([$uid], array_map('intval', $client_ids)); // [uid, c1, c2, ...]
+        $all_ids_str = implode(',', $all_ids);
+
+        // Backfill: orders placed by any of these users that have no ledger debit entry yet.
+        // We recalculate billing_amount from serialized products using the current user's margin/percent
+        // so that historic orders placed before percent was set are also correctly discounted.
+        if ($this->db->table_exists('ledger') && $this->db->field_exists('billing_amount', 'orders')) {
+            $unbilled = $this->db->query(
+                "SELECT o.id, o.order_id, o.billing_amount, o.date, o.user_id, o.products
+                 FROM orders o
+                 WHERE o.user_id IN ({$all_ids_str})
+                   AND NOT EXISTS (SELECT 1 FROM ledger l WHERE l.order_id = o.id AND l.type = 'debit' AND l.user_id = {$uid})
+                 ORDER BY o.date ASC"
+            )->result_array();
+
+            $uid_percent = (float)($user_row->percent ?? 0);
+            $uid_type    = (int)($user_row->type ?? 0);
+
+            foreach ($unbilled as $ub) {
+                // Compute raw total from serialized products (wsp → fallback to price)
+                $raw_total = 0;
+                $prods = @unserialize($ub['products']);
+                if (is_array($prods)) {
+                    foreach ($prods as $p) {
+                        $wsp = (float)($p['product_info']['wsp'] ?? 0);
+                        if ($wsp <= 0) $wsp = (float)($p['product_info']['price'] ?? 0);
+                        $raw_total += $wsp * (int)($p['product_quantity'] ?? 1);
+                    }
+                }
+                if ($raw_total <= 0) continue; // can't bill with no price data
+
+                // Apply discount if this user is a distributor or wholesaler
+                if (in_array($uid_type, [2, 3]) && $uid_percent > 0) {
+                    $billing = round($raw_total * (1 - $uid_percent / 100), 2);
+                } else {
+                    $billing = round($raw_total, 2);
+                }
+
+                // Correct the order record if billing_amount is wrong
+                if (abs((float)$ub['billing_amount'] - $billing) > 0.01) {
+                    $this->db->where('id', (int)$ub['id'])->update('orders', [
+                        'billing_amount'    => $billing,
+                        'billed_to_user_id' => $uid,
+                    ]);
+                }
+
+                add_ledger_entry($uid, 'debit', $billing, 'Order billed — Order #' . $ub['order_id'], (int)$ub['id'], (int)$ub['date']);
+            }
+
+            // Fix dates on existing debit entries: use the order's actual date
+            $this->db->query(
+                "UPDATE `ledger` l
+                 JOIN `orders` o ON o.id = l.order_id
+                 SET l.date = o.date
+                 WHERE l.user_id = {$uid} AND l.type = 'debit' AND l.date != o.date"
+            );
+
+            // Backfill credits: verified payments on client orders not yet reflected in this user's ledger
+            if ($this->db->table_exists('payments')) {
+                $verified_payments = $this->db->query(
+                    "SELECT p.id as pay_id, p.order_id, p.amount, p.mode, p.recorded_at, o.order_id as order_no
+                     FROM payments p
+                     JOIN orders o ON o.id = p.order_id
+                     WHERE o.user_id IN ({$all_ids_str})
+                       AND p.status = 'verified'
+                     ORDER BY p.recorded_at ASC"
+                )->result_array();
+                foreach ($verified_payments as $vp) {
+                    // Check if a credit for this payment amount already exists under uid for this order
+                    $exists = $this->db->query(
+                        "SELECT id FROM ledger WHERE user_id = {$uid} AND order_id = " . (int)$vp['order_id'] .
+                        " AND type = 'credit' AND ABS(amount - " . round((float)$vp['amount'], 2) . ") < 0.01"
+                    )->row();
+                    if (!$exists) {
+                        add_ledger_entry(
+                            $uid, 'credit', (float)$vp['amount'],
+                            'Payment received — Order #' . $vp['order_no'] . ($vp['mode'] ? ' (' . $vp['mode'] . ')' : ''),
+                            (int)$vp['order_id'],
+                            (int)$vp['recorded_at']
+                        );
+                    } else {
+                        // Fix date on existing credit entry if it doesn't match payment's recorded_at
+                        $this->db->query(
+                            "UPDATE `ledger` SET `date` = " . (int)$vp['recorded_at'] .
+                            " WHERE id = " . (int)$exists->id . " AND `date` != " . (int)$vp['recorded_at']
+                        );
+                    }
+                }
+            }
+        }
+
+        // Fetch ledger for this user, enriched with client name via orders
+        $data['ledger'] = $this->db->table_exists('ledger')
+            ? $this->db->query(
+                "SELECT l.*, o.order_id as order_no, up.name as client_name, up.company as client_company
+                 FROM ledger l
+                 LEFT JOIN orders o ON o.id = l.order_id
+                 LEFT JOIN users_public up ON up.id = o.user_id
+                 WHERE l.user_id = {$uid}
+                 ORDER BY l.id ASC"
+              )->result_array()
+            : [];
+
+        // ── Commission (agent only) ──
+        $data['commission_records'] = [];
+        $data['commission_stats']   = ['total' => 0, 'paid' => 0, 'payable' => 0, 'pending' => 0];
+        if ($data['user_role'] === 'agent' && $this->db->table_exists('commissions')) {
+            $recs = $this->db->where('agent_id', $uid)->order_by('id', 'DESC')->get('commissions')->result_array();
+            // Enrich with retailer name
+            foreach ($recs as &$rec) {
+                $r = $this->db->select('name, company')->where('id', (int)$rec['retailer_id'])->get('users_public')->row();
+                $rec['retailer_name'] = $r ? ($r->company ?: $r->name) : 'Unknown';
+                $data['commission_stats']['total'] += (float)$rec['commission_amt'];
+                if ($rec['status'] === 'paid')         $data['commission_stats']['paid']    += (float)$rec['commission_amt'];
+                elseif ($rec['status'] === 'payable')  $data['commission_stats']['payable'] += (float)$rec['commission_amt'];
+                else                                   $data['commission_stats']['pending'] += (float)$rec['commission_amt'];
+            }
+            unset($rec);
+            $data['commission_records'] = $recs;
+        }
+
+        // ── Claims ──
+        $this->_ensure_claims_table();
+        $raw_claims = $this->db
+            ->where('user_id', $uid)
+            ->order_by('id', 'DESC')
+            ->get('claims')->result_array();
+        // Enrich with order_ref
+        foreach ($raw_claims as &$cl) {
+            if (!empty($cl['order_id'])) {
+                $o = $this->db->select('order_id')->where('id', (int)$cl['order_id'])->get('orders')->row();
+                $cl['order_ref'] = $o ? '#' . $o->order_id : '—';
+            } else {
+                $cl['order_ref'] = '—';
+            }
+        }
+        unset($cl);
+        $data['claims'] = $raw_claims;
+
         $this->load->view('templates/redlabel/_parts/header');
         $this->load->view('templates/redlabel/account',$data);
         $this->load->view('templates/redlabel/_parts/footer');
+    }
+
+    // ── Claims helpers ──────────────────────────────────────────
+
+    private function _ensure_claims_table()
+    {
+        if (!$this->db->table_exists('claims')) {
+            $this->db->query('CREATE TABLE IF NOT EXISTS `claims` (
+                `id`           INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                `claim_no`     VARCHAR(20)  NOT NULL DEFAULT \'\',
+                `user_id`      INT UNSIGNED NOT NULL,
+                `order_id`     INT UNSIGNED NULL,
+                `type`         VARCHAR(50)  NOT NULL DEFAULT \'\',
+                `amount`       DECIMAL(10,2) NOT NULL DEFAULT 0,
+                `description`  TEXT NULL,
+                `status`       ENUM(\'pending\',\'approved\',\'rejected\',\'paid\') NOT NULL DEFAULT \'pending\',
+                `admin_remark` TEXT NULL,
+                `created_at`   INT UNSIGNED NOT NULL DEFAULT 0,
+                `updated_at`   INT UNSIGNED NULL,
+                INDEX (`user_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+        }
+    }
+
+    private function _ensure_gr_table()
+    {
+        if (!$this->db->table_exists('gr_requests')) {
+            $this->db->query('CREATE TABLE IF NOT EXISTS `gr_requests` (
+                `id`           INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                `gr_no`        VARCHAR(25)  NOT NULL DEFAULT \'\',
+                `order_id`     INT UNSIGNED NOT NULL,
+                `order_no`     VARCHAR(20)  NOT NULL DEFAULT \'\',
+                `submitted_by` INT UNSIGNED NOT NULL,
+                `retailer_id`  INT UNSIGNED NOT NULL,
+                `return_type`  VARCHAR(60)  NOT NULL DEFAULT \'\',
+                `items`        TEXT         NOT NULL,
+                `remark`       TEXT         NULL,
+                `proof_files`  TEXT         NULL,
+                `status`       ENUM(\'pending\',\'approved\',\'rejected\',\'processed\') NOT NULL DEFAULT \'pending\',
+                `admin_remark` TEXT         NULL,
+                `created_at`   INT UNSIGNED NOT NULL DEFAULT 0,
+                `updated_at`   INT UNSIGNED NULL,
+                INDEX (`submitted_by`),
+                INDEX (`order_id`),
+                INDEX (`retailer_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+        }
+    }
+
+    /**
+     * POST: commission_id
+     * Agent requests disbursement of a payable commission.
+     */
+    public function request_commission()
+    {
+        header('Content-Type: application/json');
+        if (!is_logged_in()) { echo json_encode(['success' => false]); exit(); }
+        $uid           = (int)user_id();
+        $commission_id = (int)$this->input->post('commission_id');
+        if (!$commission_id || !$this->db->table_exists('commissions')) {
+            echo json_encode(['success' => false]); exit();
+        }
+        // Verify this commission belongs to this agent and is in 'payable' state
+        $rec = $this->db->where('id', $commission_id)->where('agent_id', $uid)->where('status', 'payable')->get('commissions')->row();
+        if (!$rec) { echo json_encode(['success' => false, 'error' => 'Not eligible']); exit(); }
+        $this->db->where('id', $commission_id)->update('commissions', ['disbursement_requested_at' => time()]);
+        echo json_encode(['success' => true]);
+        exit();
+    }
+
+    public function submit_gr()
+    {
+        header('Content-Type: application/json');
+        if (!is_logged_in()) { echo json_encode(['success' => false, 'error' => 'Not logged in']); exit(); }
+        $uid         = (int)user_id();
+        $order_id    = (int)$this->input->post('order_id');
+        $retailer_id = (int)$this->input->post('retailer_id');
+        $return_type = trim($this->input->post('return_type') ?? '');
+        $items       = trim($this->input->post('items')       ?? '');
+        $remark      = trim($this->input->post('remark')      ?? '');
+
+        if (!$order_id || !$return_type || !$items) {
+            echo json_encode(['success' => false, 'error' => 'Order, return type, and items are required.']); exit();
+        }
+
+        // Verify the order belongs to a client of this user
+        $order = $this->db->select('id, order_id, user_id')->where('id', $order_id)->get('orders')->row();
+        if (!$order) { echo json_encode(['success' => false, 'error' => 'Order not found.']); exit(); }
+        $client_check = $this->db->query(
+            "SELECT id FROM users_public WHERE id = {$order->user_id} AND FIND_IN_SET({$uid}, agents)"
+        )->row();
+        if (!$client_check && (int)$order->user_id !== $uid) {
+            echo json_encode(['success' => false, 'error' => 'Unauthorized.']); exit();
+        }
+
+        // Handle proof file uploads
+        $proof_files = [];
+        $dir = './attachments/gr_proofs/';
+        if (!is_dir($dir)) mkdir($dir, 0777, true);
+        if (!empty($_FILES['proof']['name'][0])) {
+            $this->load->library('upload');
+            $files = $_FILES['proof'];
+            $count = count($files['name']);
+            for ($i = 0; $i < $count; $i++) {
+                if (!$files['name'][$i]) continue;
+                $_FILES['proof_single'] = [
+                    'name'     => $files['name'][$i],
+                    'type'     => $files['type'][$i],
+                    'tmp_name' => $files['tmp_name'][$i],
+                    'error'    => $files['error'][$i],
+                    'size'     => $files['size'][$i],
+                ];
+                $this->upload->initialize(['upload_path' => $dir, 'allowed_types' => 'jpg|jpeg|png|pdf|webp', 'max_size' => 4096]);
+                if ($this->upload->do_upload('proof_single')) {
+                    $proof_files[] = $this->upload->data()['file_name'];
+                }
+            }
+        }
+
+        $this->_ensure_gr_table();
+        $gr_no = 'GR-' . strtoupper(substr(uniqid(), -6));
+        $this->db->insert('gr_requests', [
+            'gr_no'        => $gr_no,
+            'order_id'     => $order_id,
+            'order_no'     => $order->order_id,
+            'submitted_by' => $uid,
+            'retailer_id'  => $retailer_id ?: (int)$order->user_id,
+            'return_type'  => $return_type,
+            'items'        => $items,
+            'remark'       => $remark,
+            'proof_files'  => implode(',', $proof_files),
+            'status'       => 'pending',
+            'created_at'   => time(),
+        ]);
+
+        echo json_encode(['success' => true, 'gr_no' => $gr_no]);
+        exit();
+    }
+
+    public function submit_claim()
+    {
+        header('Content-Type: application/json');
+        if (!is_logged_in()) { echo json_encode(['success' => false, 'error' => 'Not logged in']); exit(); }
+        $uid      = (int)user_id();
+        $type     = trim($this->input->post('type')        ?? '');
+        $amount   = (float)$this->input->post('amount');
+        $desc     = trim($this->input->post('description') ?? '');
+        $order_id = (int)$this->input->post('order_id');
+
+        if (!$type || $amount <= 0) {
+            echo json_encode(['success' => false, 'error' => 'Claim type and a valid amount are required.']);
+            exit();
+        }
+        $this->_ensure_claims_table();
+        $this->db->insert('claims', [
+            'claim_no'    => '',
+            'user_id'     => $uid,
+            'order_id'    => $order_id ?: null,
+            'type'        => $type,
+            'amount'      => $amount,
+            'description' => $desc ?: null,
+            'status'      => 'pending',
+            'created_at'  => time(),
+        ]);
+        $new_id   = $this->db->insert_id();
+        $claim_no = 'CLM-' . str_pad($new_id, 4, '0', STR_PAD_LEFT);
+        $this->db->where('id', $new_id)->update('claims', ['claim_no' => $claim_no]);
+        echo json_encode(['success' => true, 'claim_no' => $claim_no]);
+        exit();
     }
 
     // ── user_addresses helpers ──────────────────────────────────
@@ -731,7 +1258,8 @@ public function scan_result() {
     }
     
     public function wishlist()
-    {   
+    {
+        if (!is_logged_in()) { redirect('login'); }
         $data['product'] = $this-> Wishlist_model->get_wishlist();
         $this->load->view('templates/redlabel/_parts/header');
         $this->load->view('templates/redlabel/wishlist',$data);
@@ -852,6 +1380,144 @@ public function scan_result() {
         exit();
     }
 
+    /**
+     * POST: company, email, password, phone, address
+     * Creates a new retailer client attached to the current logged-in user.
+     */
+    public function add_client()
+    {
+        header('Content-Type: application/json');
+        if (!is_logged_in()) { echo json_encode(['success' => false, 'error' => 'Not logged in']); exit(); }
+
+        $uid     = (int)user_id();
+        $company = trim($this->input->post('company'));
+        $email   = trim($this->input->post('email'));
+        $phone   = trim($this->input->post('phone'));
+        $address = trim($this->input->post('address'));
+        $pan     = trim($this->input->post('pan') ?? '');
+        $gst     = trim($this->input->post('gst') ?? '');
+        $pass    = $this->input->post('password');
+
+        if (!$company || !$email || !$pass) {
+            echo json_encode(['success' => false, 'error' => 'Company, email and password are required.']); exit();
+        }
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            echo json_encode(['success' => false, 'error' => 'Invalid email address.']); exit();
+        }
+        if ($this->db->where('email', $email)->count_all_results('users_public') > 0) {
+            echo json_encode(['success' => false, 'error' => 'Email already registered.']); exit();
+        }
+
+        // Ensure agents column exists
+        if (!$this->db->field_exists('agents', 'users_public')) {
+            $this->db->query("ALTER TABLE `users_public` ADD COLUMN `agents` VARCHAR(255) DEFAULT NULL");
+        }
+
+        $row = [
+            'name'     => $company,
+            'email'    => $email,
+            'phone'    => $phone,
+            'company'  => $company,
+            'address'  => $address,
+            'pan'      => $pan,
+            'gst'      => $gst,
+            'password' => md5($pass),
+            'type'     => 4,
+            'status'   => 1,
+            'agents'   => (string)$uid,
+        ];
+        // Only include 'created' if the column exists
+        if ($this->db->field_exists('created', 'users_public')) {
+            $row['created'] = date('Y-m-d H:i:s');
+        }
+
+        $inserted = $this->db->insert('users_public', $row);
+        if (!$inserted || !$this->db->insert_id()) {
+            echo json_encode(['success' => false, 'error' => 'Failed to save client. Please try again.']);
+            exit();
+        }
+
+        echo json_encode(['success' => true]);
+        exit();
+    }
+
+    public function edit_client()
+    {
+        header('Content-Type: application/json');
+        if (!is_logged_in()) { echo json_encode(['success' => false, 'error' => 'Not logged in']); exit(); }
+
+        $uid       = (int)user_id();
+        $client_id = (int)$this->input->post('id');
+
+        $client = $this->db->query(
+            "SELECT id FROM `users_public` WHERE id = {$client_id} AND FIND_IN_SET({$uid}, `agents`)"
+        )->row();
+        if (!$client) {
+            echo json_encode(['success' => false, 'error' => 'Client not found.']); exit();
+        }
+
+        $name    = trim($this->input->post('name'));
+        $company = trim($this->input->post('company'));
+        $pan     = trim($this->input->post('pan') ?? '');
+        $gst     = trim($this->input->post('gst') ?? '');
+        $address = trim($this->input->post('address') ?? '');
+        $phone   = trim($this->input->post('phone') ?? '');
+        $pass    = $this->input->post('password');
+
+        if (!$name || !$company) {
+            echo json_encode(['success' => false, 'error' => 'Name and company are required.']); exit();
+        }
+
+        $row = [
+            'name'    => $name,
+            'company' => $company,
+            'phone'   => $phone,
+            'pan'     => $pan,
+            'gst'     => $gst,
+            'address' => $address,
+        ];
+        if (!empty($pass)) {
+            $row['password'] = md5($pass);
+        }
+
+        $this->db->where('id', $client_id)->update('users_public', $row);
+        echo json_encode(['success' => true]);
+        exit();
+    }
+
+    /**
+     * GET: Returns total order count + billing total for a client.
+     */
+    public function get_client_stats($client_id)
+    {
+        header('Content-Type: application/json');
+        if (!is_logged_in()) { echo json_encode(['orders' => 0, 'total' => 0]); exit(); }
+
+        $client_id = (int)$client_id;
+        $uid       = (int)user_id();
+
+        // Verify this client actually belongs to this user
+        $client = $this->db->where('id', $client_id)
+                           ->where('agents', (string)$uid)
+                           ->get('users_public')->row();
+        // Allow FIND_IN_SET for multi-agent clients
+        if (!$client) {
+            $client = $this->db->query(
+                'SELECT id FROM users_public WHERE id = ? AND FIND_IN_SET(?, agents)',
+                [$client_id, (string)$uid]
+            )->row();
+        }
+        if (!$client) { echo json_encode(['orders' => 0, 'total' => 0]); exit(); }
+
+        $orders = $this->db->where('user_id', $client_id)->get('orders')->result_array();
+        $total  = 0;
+        foreach ($orders as $o) {
+            $total += (float)($o['billing_amount'] ?? 0);
+        }
+        echo json_encode(['orders' => count($orders), 'total' => round($total, 2)]);
+        exit();
+    }
+
     public function ajax_remove_cart()
     {
         if (!is_logged_in()) {
@@ -865,6 +1531,90 @@ public function scan_result() {
             'id'         => $cart_id,
         ]);
         header('Content-Type: application/json');
+        echo json_encode(['success' => true]);
+        exit();
+    }
+
+    public function submit_payment_receipt()
+    {
+        header('Content-Type: application/json');
+        if (!is_logged_in()) { echo json_encode(['success' => false, 'message' => 'Not logged in']); exit(); }
+
+        $uid      = (int)user_id();
+        $order_id = (int)$this->input->post('order_id');
+        $amount   = (float)$this->input->post('amount');
+        $mode     = trim($this->input->post('mode') ?? '');
+        $reference= trim($this->input->post('reference') ?? '');
+        $notes    = trim($this->input->post('notes') ?? '');
+
+        if (!$order_id || !$amount) {
+            echo json_encode(['success' => false, 'message' => 'Order and amount are required.']);
+            exit();
+        }
+
+        // Ensure payments table exists
+        if (!$this->db->table_exists('payments')) {
+            $this->db->query("CREATE TABLE IF NOT EXISTS `payments` (
+                `id`          INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                `order_id`    INT UNSIGNED NOT NULL,
+                `user_id`     INT UNSIGNED NOT NULL,
+                `amount`      DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+                `mode`        VARCHAR(50) NOT NULL DEFAULT '',
+                `reference`   VARCHAR(100) NOT NULL DEFAULT '',
+                `notes`       TEXT,
+                `receipt_file`VARCHAR(255) NOT NULL DEFAULT '',
+                `status`      ENUM('pending','verified','rejected') NOT NULL DEFAULT 'pending',
+                `recorded_at` INT UNSIGNED NOT NULL DEFAULT 0,
+                `verified_at` INT UNSIGNED NOT NULL DEFAULT 0,
+                INDEX (`order_id`), INDEX (`user_id`), INDEX (`status`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        } else {
+            // Add missing columns if table existed before
+            if (!$this->db->field_exists('receipt_file', 'payments')) {
+                $this->db->query("ALTER TABLE `payments` ADD COLUMN `receipt_file` VARCHAR(255) NOT NULL DEFAULT ''");
+            }
+            if (!$this->db->field_exists('status', 'payments')) {
+                $this->db->query("ALTER TABLE `payments` ADD COLUMN `status` ENUM('pending','verified','rejected') NOT NULL DEFAULT 'pending'");
+            }
+            if (!$this->db->field_exists('verified_at', 'payments')) {
+                $this->db->query("ALTER TABLE `payments` ADD COLUMN `verified_at` INT UNSIGNED NOT NULL DEFAULT 0");
+            }
+        }
+
+        // Handle file upload
+        $receipt_file = '';
+        if (!empty($_FILES['receipt']['name'])) {
+            $upload_path = FCPATH . 'assets/uploads/payment_receipts/';
+            if (!is_dir($upload_path)) { mkdir($upload_path, 0755, true); }
+            $config = [
+                'upload_path'   => $upload_path,
+                'allowed_types' => 'jpg|jpeg|png|pdf|webp',
+                'max_size'      => 5120, // 5MB
+                'file_name'     => 'receipt_' . $uid . '_' . time(),
+                'overwrite'     => false,
+            ];
+            $this->load->library('upload', $config);
+            if ($this->upload->do_upload('receipt')) {
+                $receipt_file = $this->upload->data('file_name');
+            } else {
+                echo json_encode(['success' => false, 'message' => $this->upload->display_errors('', '')]);
+                exit();
+            }
+        }
+
+        $this->db->insert('payments', [
+            'order_id'    => $order_id,
+            'user_id'     => $uid,
+            'amount'      => round($amount, 2),
+            'mode'        => $mode,
+            'reference'   => $reference,
+            'notes'       => $notes,
+            'receipt_file'=> $receipt_file,
+            'status'      => 'pending',
+            'recorded_at' => time(),
+            'verified_at' => 0,
+        ]);
+
         echo json_encode(['success' => true]);
         exit();
     }

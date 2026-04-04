@@ -89,24 +89,26 @@ function get_loggedin_user_details()
     return $user['0'];
 }
 function get_product_quantity($item_id)
-{   
-$CI =& get_instance(); 
+{
+    $CI =& get_instance();
 
-// ✅ FIXED: Safe query with error checking
-$query = $CI->db->query('SELECT set_pcs_qty FROM `products_translations` WHERE id = ' . (int)$item_id);
+    // For DB2-synced products: set size = count of sizes currently in stock
+    if ($CI->db->table_exists('product_barcodes')) {
+        $p = $CI->db->select('itm_synced')->where('id', (int)$item_id)->get('products')->row();
+        if ($p && (int)$p->itm_synced === 1) {
+            $count = $CI->db->where('product_id', (int)$item_id)
+                            ->where('stock_qty >', 0)
+                            ->count_all_results('product_barcodes');
+            return (int)$count;
+        }
+    }
 
-if ($query === FALSE) {
-    // Query failed - log error
-    log_message('error', 'Query failed: ' . $CI->db->last_query());
-    log_message('error', 'DB Error: ' . print_r($CI->db->error(), true));
-    $qty = 4;  // Default fallback
-} elseif ($query->num_rows() > 0) {
-    $qty = $query->row()->set_pcs_qty;
-} else {
-    $qty = 4;  // No record found - default
-}
-   
-    return $qty;
+    // Manual products: use set_pcs_qty from products_translations
+    $query = $CI->db->query('SELECT set_pcs_qty FROM `products_translations` WHERE for_id = ' . (int)$item_id . ' LIMIT 1');
+    if ($query && $query->num_rows() > 0 && $query->row()->set_pcs_qty > 0) {
+        return (int)$query->row()->set_pcs_qty;
+    }
+    return 1; // default fallback
 }
 function get_loggedin_user_agent() {
     $CI =& get_instance(); 

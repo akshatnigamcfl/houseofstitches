@@ -12,11 +12,30 @@ class Public_model extends CI_Model
         parent::__construct();
         
         $this->load->Model('Home_admin_model');
-        $this->showOutOfStock = $this->Home_admin_model->getValueStore('outOfStock');
+        $this->showOutOfStock = 0; // Always hide out-of-stock products from shop
         $this->showInSliderProducts = $this->Home_admin_model->getValueStore('showInSlider');
         $this->multiVendor = $this->Home_admin_model->getValueStore('multiVendor');
 
         $this->load->library('encryption');
+        $this->_ensure_order_columns();
+    }
+
+    private function _ensure_order_columns()
+    {
+        $add = [
+            'dispatch_products'  => 'ALTER TABLE `orders` ADD COLUMN `dispatch_products` LONGBLOB NULL DEFAULT NULL',
+            'tracking_courier'   => 'ALTER TABLE `orders` ADD COLUMN `tracking_courier` VARCHAR(100) NULL DEFAULT NULL',
+            'tracking_id'        => 'ALTER TABLE `orders` ADD COLUMN `tracking_id` VARCHAR(100) NULL DEFAULT NULL',
+            'billed_to_user_id'  => 'ALTER TABLE `orders` ADD COLUMN `billed_to_user_id` INT UNSIGNED NULL DEFAULT NULL',
+            'billing_amount'     => 'ALTER TABLE `orders` ADD COLUMN `billing_amount` DECIMAL(10,2) NULL DEFAULT NULL',
+            'payment_status'     => 'ALTER TABLE `orders` ADD COLUMN `payment_status` TINYINT NOT NULL DEFAULT 0',
+            'paid_amount'        => 'ALTER TABLE `orders` ADD COLUMN `paid_amount` DECIMAL(10,2) NOT NULL DEFAULT 0.00',
+        ];
+        foreach ($add as $col => $sql) {
+            if (!$this->db->field_exists($col, 'orders')) {
+                $this->db->query($sql);
+            }
+        }
     }
 
     public function productsCount($big_get)
@@ -182,6 +201,7 @@ class Public_model extends CI_Model
             'search_in_desc' => '', 'search_in_color' => '', 'search_in_size' => '',
             'search_in_body' => '', 'order_price' => '', 'order_procurement' => '',
             'order_new' => '', 'quantity_more' => '', 'brand_id' => '',
+            'search_in_fabric_category' => '',
             'added_after' => '', 'added_before' => '', 'price_from' => '', 'price_to' => '',
         ], $big_get);
 
@@ -203,7 +223,8 @@ class Public_model extends CI_Model
             $this->db->where('products.quantity ' . $sign, '0');
         }
         if ($big_get['search_in_title'] != '') {
-            $this->db->like('products_translations.title', $big_get['search_in_title']);
+            $safe = $this->db->escape_like_str(trim($big_get['search_in_title']));
+            $this->db->where("(products_translations.title LIKE '%{$safe}%' OR products.article_number LIKE '%{$safe}%')");
         }
         if ($big_get['season'] != '') {
             $search = array_filter(array_unique(explode(',', $big_get['season'])));
@@ -224,7 +245,10 @@ class Public_model extends CI_Model
         }
         if ($big_get['search_in_brand'] != '') {
             $this->db->where('products_translations.brand', $big_get['search_in_brand']);
-        }   
+        }
+        if ($big_get['search_in_fabric_category'] != '') {
+            $this->db->where('products_translations.fabric_category', $big_get['search_in_fabric_category']);
+        }
         if ($big_get['search_in_desc'] != '') {  
             $clean = str_replace('+', '', $big_get['search_in_desc']);
             $this->db->like('products_translations.description', $big_get['search_in_desc']);
@@ -290,7 +314,7 @@ class Public_model extends CI_Model
      */
     public function getDistinctFilterValues($field)
     {
-        $allowed = ['season', 'gender', 'fabric', 'brand', 'color', 'size_range'];
+        $allowed = ['season', 'gender', 'fabric', 'brand', 'color', 'size_range', 'sub_category', 'fabric_category', 'fabric_type', 'fabric_composition'];
         if (!in_array($field, $allowed)) return [];
 
         // Normalize legacy numeric gender values to text labels
@@ -354,7 +378,7 @@ class Public_model extends CI_Model
     {
         $this->db->where('products.id', $id);
 
-        $this->db->select('vendors.url as vendor_url, products.*, products_translations.title, products_translations.description, products_translations.price, products_translations.old_price, products_translations.wsp, products_translations.msp, products_translations.color, products_translations.size_range, products_translations.fabric, products_translations.brand, products_translations.season, products.url, shop_categories_translations.name as categorie_name');
+        $this->db->select('vendors.url as vendor_url, products.*, products_translations.title, products_translations.description, products_translations.price, products_translations.old_price, products_translations.wsp, products_translations.msp, products_translations.color, products_translations.size_range, products_translations.fabric, products_translations.brand, products_translations.season, products_translations.sub_category, products_translations.fabric_category, products_translations.fabric_type, products_translations.fabric_composition, products.url, shop_categories_translations.name as categorie_name');
 
         $this->db->join('products_translations', 'products_translations.for_id = products.id', 'left');
         $this->db->where('products_translations.abbr', MY_LANGUAGE_ABBR);
@@ -430,11 +454,17 @@ class Public_model extends CI_Model
         $post['date'] = time();
         $products_to_order = [];
         if(!empty($post['products'])) {
-            foreach($post['products'] as $pr_id => $pr_qua) {
+            foreach($post['products'] as $pr_id => $pr_set_count) {
+                $pr_set_count = (int)$pr_set_count;
+                // For DB2-synced products, calculate pieces at order time (snapshot)
+                $pieces_per_set = (int)get_product_quantity((int)$pr_id);
+                if ($pieces_per_set <= 0) $pieces_per_set = 1;
                 $products_to_order[] = [
-                    'product_info' => $this->getOneProductForSerialize($pr_id),
-                    'product_quantity' => $pr_qua
-                    ];
+                    'product_info'     => $this->getOneProductForSerialize($pr_id),
+                    'product_quantity' => $pr_set_count * $pieces_per_set, // total pieces
+                    'set_count'        => $pr_set_count,                   // sets ordered
+                    'pieces_per_set'   => $pieces_per_set,                 // snapshot of set size at order time
+                ];
             }
         }
         $post['products'] = serialize($products_to_order);
@@ -482,12 +512,15 @@ class Public_model extends CI_Model
         }else{
             $notes = '';
         }
-        // Ensure company/gst columns exist (added in v1.0.5)
+        // Ensure company/gst columns exist and are wide enough for encrypted values
         if (!$this->db->field_exists('company', 'orders_clients')) {
-            $this->db->query('ALTER TABLE `orders_clients` ADD COLUMN `company` VARCHAR(200) NOT NULL DEFAULT \'\' AFTER `first_name`');
+            $this->db->query('ALTER TABLE `orders_clients` ADD COLUMN `company` VARCHAR(500) NOT NULL DEFAULT \'\' AFTER `first_name`');
         }
         if (!$this->db->field_exists('gst', 'orders_clients')) {
-            $this->db->query('ALTER TABLE `orders_clients` ADD COLUMN `gst` VARCHAR(50) NOT NULL DEFAULT \'\' AFTER `company`');
+            $this->db->query('ALTER TABLE `orders_clients` ADD COLUMN `gst` VARCHAR(500) NOT NULL DEFAULT \'\' AFTER `company`');
+        } else {
+            // Widen if still at the old size (encrypted values need more space)
+            $this->db->query('ALTER TABLE `orders_clients` MODIFY COLUMN `gst` VARCHAR(500) NOT NULL DEFAULT \'\'');
         }
         if (!$this->db->insert('orders_clients', array(
                     'for_id'     => $lastId,
@@ -509,13 +542,129 @@ class Public_model extends CI_Model
             return false;
         } else {
             $this->db->trans_commit();
+            // Post-commit: set billing fields + create ledger entries
+            $this->_apply_billing($lastId, $products_to_order, $uid);
             return $post['order_id'];
         }
     }
-    
+
+    /**
+     * Determines who is billed for this order, at what amount,
+     * and creates ledger / commission records accordingly.
+     */
+    private function _apply_billing($order_db_id, $products_array, $user_id)
+    {
+        $this->load->helper('ledger_helper');
+
+        // Raw total = sum of wsp × qty (fall back to price if wsp is null/zero)
+        $raw_total = 0;
+        foreach ($products_array as $item) {
+            $wsp = (float)($item['product_info']['wsp'] ?? 0);
+            if ($wsp <= 0) $wsp = (float)($item['product_info']['price'] ?? 0);
+            $raw_total += $wsp * (int)$item['product_quantity'];
+        }
+
+        $user = $this->db->select('type, percent, agents')->where('id', (int)$user_id)->get('users_public')->row();
+        if (!$user) {
+            // Guest / unknown — just set billing to raw total
+            $this->db->where('id', $order_db_id)->update('orders', [
+                'billed_to_user_id' => (int)$user_id,
+                'billing_amount'    => round($raw_total, 2),
+            ]);
+            return;
+        }
+
+        $type    = (int)$user->type;
+        $percent = (float)($user->percent ?? 0);
+        $agents  = trim((string)($user->agents ?? ''));
+
+        if ($type === 2 || $type === 3) {
+            // Distributor / Wholesaler ordering for themselves — apply their margin
+            $billing_amount   = round($raw_total * (1 - $percent / 100), 2);
+            $billed_to_user_id = (int)$user_id;
+            $this->db->where('id', $order_db_id)->update('orders', [
+                'billed_to_user_id' => $billed_to_user_id,
+                'billing_amount'    => $billing_amount,
+            ]);
+            add_ledger_entry($billed_to_user_id, 'debit', $billing_amount,
+                'Order placed — Order #' . $order_db_id, $order_db_id);
+
+        } elseif ($type === 4 && $agents !== '') {
+            // Retailer attached to a parent — bill the parent
+            $parent_id = (int)explode(',', $agents)[0];
+            $parent    = $this->db->select('type, percent')->where('id', $parent_id)->get('users_public')->row();
+
+            if (!$parent) {
+                // Orphaned reference — treat as standalone retailer
+                $this->db->where('id', $order_db_id)->update('orders', [
+                    'billed_to_user_id' => (int)$user_id,
+                    'billing_amount'    => round($raw_total, 2),
+                ]);
+                return;
+            }
+
+            $parent_type    = (int)$parent->type;
+            $parent_percent = (float)($parent->percent ?? 0);
+
+            if ($parent_type === 2 || $parent_type === 3) {
+                // Parent is distributor/wholesaler — margin discount
+                $billing_amount = round($raw_total * (1 - $parent_percent / 100), 2);
+            } else {
+                // Parent is agent — full price, but commission tracked
+                $billing_amount = round($raw_total, 2);
+            }
+
+            $this->db->where('id', $order_db_id)->update('orders', [
+                'billed_to_user_id' => $parent_id,
+                'billing_amount'    => $billing_amount,
+            ]);
+            add_ledger_entry($parent_id, 'debit', $billing_amount,
+                'Retailer order billed — Order #' . $order_db_id, $order_db_id);
+
+            if ($parent_type === 1) {
+                // Agent — create commission record
+                $commission_amt = round($billing_amount * $parent_percent / 100, 2);
+                if (!$this->db->table_exists('commissions')) {
+                    $this->db->query("CREATE TABLE `commissions` (
+                        `id`              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                        `agent_id`        INT UNSIGNED NOT NULL,
+                        `retailer_id`     INT UNSIGNED NOT NULL,
+                        `order_id`        INT UNSIGNED NOT NULL,
+                        `order_amount`    DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+                        `commission_rate` DECIMAL(5,2)  NOT NULL DEFAULT 0.00,
+                        `commission_amt`  DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+                        `status`          ENUM('pending','paid') NOT NULL DEFAULT 'pending',
+                        `date`            INT UNSIGNED  NOT NULL,
+                        INDEX `idx_agent_id`  (`agent_id`),
+                        INDEX `idx_order_id`  (`order_id`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+                }
+                $this->db->insert('commissions', [
+                    'agent_id'        => $parent_id,
+                    'retailer_id'     => (int)$user_id,
+                    'order_id'        => $order_db_id,
+                    'order_amount'    => $billing_amount,
+                    'commission_rate' => $parent_percent,
+                    'commission_amt'  => $commission_amt,
+                    'status'          => 'pending',
+                    'date'            => time(),
+                ]);
+            }
+
+        } else {
+            // Standalone retailer or agent ordering — full price, billed to self
+            $this->db->where('id', $order_db_id)->update('orders', [
+                'billed_to_user_id' => (int)$user_id,
+                'billing_amount'    => round($raw_total, 2),
+            ]);
+            add_ledger_entry((int)$user_id, 'debit', round($raw_total, 2),
+                'Order placed — Order #' . $order_db_id, $order_db_id);
+        }
+    }
+
     private function getOneProductForSerialize($id)
     {
-        $this->db->select('vendors.name as vendor_name, vendors.id as vendor_id, products.*, products_translations.price');
+        $this->db->select('vendors.name as vendor_name, vendors.id as vendor_id, products.id, products.image, products.article_number, products_translations.title, products_translations.price, products_translations.wsp, products_translations.msp, products_translations.color, products_translations.size_range');
         $this->db->where('products.id', $id);
         $this->db->join('vendors', 'vendors.id = products.vendor_id', 'left');
         $this->db->join('products_translations', 'products_translations.for_id = products.id', 'inner');
@@ -808,9 +957,7 @@ class Public_model extends CI_Model
             'address' => $post['address'],
             'pan' => $post['pan'],
             'gst' => $post['gst'],
-            'type' => 'NA',
-            //'type' => $post['user_type'],
-            'agents' => $post['type'],
+            'type' => (int)($post['user_type'] ?? 4),
             'status' => '2',
             'password' => md5($post['pass'])
         ));
@@ -883,6 +1030,9 @@ class Public_model extends CI_Model
         }
         if (!$this->db->field_exists('hex', 'product_variations')) {
             $this->db->query("ALTER TABLE `product_variations` ADD COLUMN `hex` varchar(20) DEFAULT NULL");
+        }
+        if (!$this->db->field_exists('images', 'product_variations')) {
+            $this->db->query("ALTER TABLE `product_variations` ADD COLUMN `images` TEXT DEFAULT NULL");
         }
         $this->db->where_in('product_id', $product_ids);
         $rows = $this->db->get('product_variations')->result_array();

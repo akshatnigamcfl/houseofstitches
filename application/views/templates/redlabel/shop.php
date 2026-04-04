@@ -107,6 +107,47 @@
           </div>
           <?php endif; ?>
 
+          <?php
+          $active_brands = strtolower(trim($_GET['search_in_brand'] ?? ''));
+          $active_fabric_cats = strtolower(trim($_GET['search_in_fabric_category'] ?? ''));
+          if (!empty($filter_brands)): ?>
+          <div class="shop-one">
+            <p class="filter-title">Brand</p>
+            <ul class="product_categories filter_height">
+              <?php foreach ($filter_brands as $br): ?>
+              <li>
+                <label class="filter-radio">
+                  <input type="checkbox" class="go-brand-filter" name="brand_filter"
+                    value="<?= htmlspecialchars($br) ?>"
+                    <?= (strtolower($br) === $active_brands) ? 'checked' : '' ?>>
+                  <span class="check-box"></span>
+                  <span class="check-label"><?= htmlspecialchars($br) ?></span>
+                </label>
+              </li>
+              <?php endforeach; ?>
+            </ul>
+          </div>
+          <?php endif; ?>
+
+          <?php if (!empty($filter_fabric_categories)): ?>
+          <div class="shop-one">
+            <p class="filter-title">Fabric Category</p>
+            <ul class="product_categories filter_height">
+              <?php foreach ($filter_fabric_categories as $fc): ?>
+              <li>
+                <label class="filter-radio">
+                  <input type="checkbox" class="go-fabric-category" name="fabric_category_filter"
+                    value="<?= htmlspecialchars($fc) ?>"
+                    <?= (strtolower($fc) === $active_fabric_cats) ? 'checked' : '' ?>>
+                  <span class="check-box"></span>
+                  <span class="check-label"><?= htmlspecialchars($fc) ?></span>
+                </label>
+              </li>
+              <?php endforeach; ?>
+            </ul>
+          </div>
+          <?php endif; ?>
+
           <div class="shop-one">
             <button type="button" id="clear-filters-btn" class="btn btn-sm btn-outline-secondary w-100">Clear Filters</button>
           </div>
@@ -458,10 +499,11 @@
                           $prod_url = base_url($val['url'] . '_' . $val['id']);
                           $folderPath = $_SERVER['DOCUMENT_ROOT'] . '/attachments/shop_images/';
                           $imagePath  = $folderPath . trim($val['image']);
+                          $is_oos     = ((int)($val['quantity'] ?? 0)) <= 0;
                         ?>
                         <div class="col-lg-3 col-md-4 col-6">
                           <div class="tb-product-item-inner">
-                            <div class="card product-card border-0">
+                            <div class="card product-card border-0" style="position:relative;">
                               <a href="<?= $prod_url ?>">
                                 <?php if (is_file($imagePath)): ?>
                                   <div class="product-img-wrapper">
@@ -480,6 +522,11 @@
                                     onload="this.parentElement.classList.remove('skeleton')">
                                 <?php endif; ?>
                               </a>
+                              <?php if ($is_oos): ?>
+                              <div style="position:absolute;inset:0;background:rgba(0,0,0,.52);display:flex;align-items:center;justify-content:center;border-radius:inherit;pointer-events:none;z-index:2;">
+                                <span style="background:#DC2626;color:#fff;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:5px 14px;border-radius:4px;">Out of Stock</span>
+                              </div>
+                              <?php endif; ?>
                             </div>
                             <div><a href="javascript:void(0);"><i data-product-id="<?= $val['id'] ?>" class="<?= in_array($val['id'], $wishlist_ids ?? []) ? 'bi bi-heart-fill text-danger' : 'bi bi-heart' ?> wishlist-btn"></i></a></div>
                             <ul class="list-unstyled tb-content">
@@ -518,7 +565,22 @@
                                 </ol>
                               </li>
                               <li>
-                                <a href="javascript:void(0);" data-price="<?= $val['wsp'] ?>" data-mrp="<?= $val['msp'] ?>" class="btn btn-dark w-100 rounded-pill mt-2 add-to-cart_new" data-action="add" data-id="<?= $val['id'] ?>">Add To Cart</a>
+                                <?php $has_vars = !empty($all_variations[$val['id']]); ?>
+                                <?php if ($is_oos): ?>
+                                <a href="javascript:void(0);" class="btn btn-secondary w-100 rounded-pill mt-2" style="opacity:.55;cursor:not-allowed;pointer-events:none;">Out of Stock</a>
+                                <?php else: ?>
+                                <a href="javascript:void(0);"
+                                   data-price="<?= $val['wsp'] ?>"
+                                   data-mrp="<?= $val['msp'] ?>"
+                                   class="btn btn-dark w-100 rounded-pill mt-2 add-to-cart_new"
+                                   data-action="add"
+                                   data-id="<?= $val['id'] ?>"
+                                   <?php if ($has_vars): ?>
+                                   data-has-variations="1"
+                                   data-product-url="<?= $prod_url ?>"
+                                   <?php endif; ?>
+                                ><?= $has_vars ? 'Select Options' : 'Add To Cart' ?></a>
+                                <?php endif; ?>
                               </li>
                             </ul>
                           </div>
@@ -536,6 +598,7 @@
                 <input type="hidden" name="gender" id="fs_gender" value="">
                 <input type="hidden" name="search_in_title" id="fs_title" value="">
                 <input type="hidden" name="search_in_brand" id="fs_brand" value="">
+                <input type="hidden" name="search_in_fabric_category" id="fs_fabric_category" value="">
                 <input type="hidden" name="search_in_desc" id="fs_desc" value="">
                 <input type="hidden" name="search_in_color" id="fs_color" value="">
                 <input type="hidden" name="search_in_size" id="fs_size" value="">
@@ -921,6 +984,20 @@
     background: #f8f8f8;
     color: #444;
   }
+  /* Equal-height product cards */
+  #catalog .col-lg-3,
+  #catalog .col-md-4,
+  #catalog .col-6 { display: flex; flex-direction: column; }
+  .tb-product-item-inner { display: flex; flex-direction: column; height: 100%; }
+  .tb-content { display: flex; flex-direction: column; flex: 1; }
+  .tb-content li:last-child { margin-top: auto; }
+
+  /* Clamp chips rows to 2 lines so they don't stretch the card */
+  li.var-chips {
+    max-height: 2.8em;
+    overflow: hidden;
+  }
+
   .var-chips {
     display: flex;
     flex-wrap: wrap;
@@ -1084,6 +1161,13 @@
   // Shopping Cart Manager
   $(document).on('click', 'a.add-to-cart_new', function(e) {
     e.preventDefault();
+
+    // If product has variations, user must select them on the product page first
+    if ($(this).data('has-variations')) {
+      var url = $(this).data('product-url');
+      if (url) { window.location.href = url; }
+      return;
+    }
 
     var reload = false;
     var action = $(this).data('action');
@@ -1473,6 +1557,26 @@
       $('#fs_size').val(brand_siz);
       applyFilters();
     });
+    $('.go-brand-filter').click(function() {
+      var br = $(this).val();
+      if ($(this).is(':checked')) {
+        $('.go-brand-filter').not(this).prop('checked', false);
+        $('#fs_brand').val(br);
+      } else {
+        $('#fs_brand').val('');
+      }
+      applyFilters();
+    });
+    $('.go-fabric-category').click(function() {
+      var fc = $(this).val();
+      if ($(this).is(':checked')) {
+        $('.go-fabric-category').not(this).prop('checked', false);
+        $('#fs_fabric_category').val(fc);
+      } else {
+        $('#fs_fabric_category').val('');
+      }
+      applyFilters();
+    });
     $('.brand').click(function() {
       $('#fs_brand_id').val($(this).data('brand-id'));
       applyFilters();
@@ -1481,7 +1585,7 @@
 
   $(document).on('click', '#clear-filters-btn', function() {
     $('#filter-state input').val('');
-    $('.go-category, .go-season, .go-size, .go-gender-cb').prop('checked', false);
+    $('.go-category, .go-season, .go-size, .go-gender-cb, .go-brand-filter, .go-fabric-category').prop('checked', false);
     applyFilters();
   });
 

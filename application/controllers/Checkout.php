@@ -51,6 +51,7 @@ class Checkout extends MY_Controller
                     $this->setVendorOrders();
                     $this->orderId = $orderId;
                     $this->saveUserAddress($_POST);
+                    $this->_saveCheckoutPaymentReceipt();
                     $this->setActivationLink();
                     $this->sendNotifications();
                     $this->goToDestination();
@@ -186,9 +187,60 @@ class Checkout extends MY_Controller
             log_message('error', 'Order confirmation email failed: ' . $this->email->print_debugger(['headers' => FALSE]));
         }
     }
+    private function _saveCheckoutPaymentReceipt()
+    {
+        $payment_type = $_POST['payment_type'] ?? '';
+
+        $uid = user_id();
+        // Get DB id of the newly created order
+        $order_row = $this->db->select('id')->where('order_id', (int)$this->orderId)->get('orders')->row();
+        if (!$order_row) return;
+        $db_order_id = (int)$order_row->id;
+
+        // Save expected_dispatch_date for ALL payment types
+        $dispatch_date = trim($_POST['dispatch_date'] ?? '');
+        if ($dispatch_date) {
+            $this->db->where('id', $db_order_id)->update('orders', ['expected_dispatch_date' => $dispatch_date]);
+        }
+
+        // Only record a payment receipt for Bank transfers
+        if ($payment_type !== 'Bank') return;
+
+        // Handle receipt file upload
+        $receipt_file = '';
+        if (!empty($_FILES['bank_payment_receipt']['name']) && $_FILES['bank_payment_receipt']['error'] === UPLOAD_ERR_OK) {
+            $upload_dir = FCPATH . 'assets/uploads/payment_receipts/';
+            if (!is_dir($upload_dir)) {
+                mkdir($upload_dir, 0755, true);
+            }
+            $ext = strtolower(pathinfo($_FILES['bank_payment_receipt']['name'], PATHINFO_EXTENSION));
+            $allowed = ['jpg', 'jpeg', 'png', 'pdf', 'webp'];
+            if (in_array($ext, $allowed) && $_FILES['bank_payment_receipt']['size'] <= 5 * 1024 * 1024) {
+                $filename = 'receipt_' . $db_order_id . '_' . time() . '.' . $ext;
+                if (move_uploaded_file($_FILES['bank_payment_receipt']['tmp_name'], $upload_dir . $filename)) {
+                    $receipt_file = $filename;
+                }
+            }
+        }
+
+        // Insert pending payment record
+        $amount = (float)($_POST['final_amount'] ?? 0);
+        $this->db->insert('payments', [
+            'order_id'     => $db_order_id,
+            'user_id'      => (int)$uid,
+            'amount'       => $amount,
+            'mode'         => 'bank',
+            'reference'    => $dispatch_date,
+            'notes'        => '',
+            'receipt_file' => $receipt_file,
+            'status'       => 'pending',
+            'recorded_at'  => time(),
+        ]);
+    }
+
     private function goToDestination()
-    {     
-        if ($_POST['payment_type'] == 'cashOnDelivery' || $_POST['payment_type'] == 'Bank') {
+    {
+        if (in_array($_POST['payment_type'], ['cashOnDelivery', 'Bank', 'Credit'])) {
             $this->shoppingcart->clearShoppingCart();
             $this->session->set_flashdata('success_order', true);
         }
@@ -197,7 +249,7 @@ class Checkout extends MY_Controller
             $_SESSION['final_amount'] = $_POST['final_amount'] . $_POST['amount_currency'];
             redirect(LANG_URL . '/checkout/successbank');
         }
-        if ($_POST['payment_type'] == 'cashOnDelivery') {
+        if ($_POST['payment_type'] == 'cashOnDelivery' || $_POST['payment_type'] == 'Credit') {
             $_SESSION['order_id'] = $this->orderId;
             redirect(LANG_URL . '/checkout/successcash');
         }
@@ -210,8 +262,42 @@ class Checkout extends MY_Controller
 
     private function saveUserAddress($post)
     {
-        // No-op: user profile is managed only via Account Settings.
-        // Checkout data is stored in orders_clients and user_addresses only.
+        $uid = user_id();
+        if (!$uid) return;
+        if (($post['addr_mode'] ?? '') !== 'new') return;
+
+        $name    = trim($post['first_name'] ?? '');
+        $phone   = trim($post['phone']      ?? '');
+        $address = trim($post['address']    ?? '');
+        if (!$name || !$address) return;
+
+        if (!$this->db->table_exists('user_addresses')) {
+            $this->db->query('CREATE TABLE IF NOT EXISTS `user_addresses` (
+                `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                `user_id`    INT UNSIGNED NOT NULL,
+                `label`      VARCHAR(100) NOT NULL DEFAULT \'\',
+                `company`    VARCHAR(200) NOT NULL DEFAULT \'\',
+                `gst`        VARCHAR(50)  NOT NULL DEFAULT \'\',
+                `name`       VARCHAR(200) NOT NULL DEFAULT \'\',
+                `phone`      VARCHAR(30)  NOT NULL DEFAULT \'\',
+                `address`    TEXT         NOT NULL,
+                `is_default` TINYINT(1)   NOT NULL DEFAULT 0,
+                `created_at` INT UNSIGNED NOT NULL DEFAULT 0,
+                INDEX (`user_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+        }
+
+        $this->db->insert('user_addresses', [
+            'user_id'    => (int)$uid,
+            'label'      => '',
+            'name'       => $name,
+            'phone'      => $phone,
+            'company'    => trim($post['company'] ?? ''),
+            'gst'        => trim($post['gst']     ?? ''),
+            'address'    => $address,
+            'is_default' => 0,
+            'created_at' => time(),
+        ]);
     }
 
     private function userInfoValidate($post)

@@ -101,6 +101,17 @@
                         </div>
                     </form>
                 </div>
+                <div class="row" style="margin-top:8px;">
+                    <div class="col-sm-12">
+                        <?php $itm_synced_filter = isset($_GET['itm_synced']) && $_GET['itm_synced'] == '1'; ?>
+                        <a href="<?= base_url('admin/products?itm_synced=1') ?>" class="btn btn-sm btn-<?= $itm_synced_filter ? 'warning' : 'default' ?>">
+                            <i class="fa fa-clock-o"></i> Pending Setup
+                        </a>
+                        <?php if ($itm_synced_filter): ?>
+                            <a href="<?= base_url('admin/products') ?>" class="btn btn-sm btn-default">Show All</a>
+                        <?php endif; ?>
+                    </div>
+                </div>
             </div>
             <hr>
             <?php
@@ -115,13 +126,15 @@
                         <thead>
                             <tr>
                                 <th>Image</th>
+                                <th>Item Code</th>
+                                <th>Scan Code</th>
                                 <th>Title</th>
                                 <th>Price</th>
                                 <th>Quantity</th>
                                 <th>Color</th>
                                 <th>Size Range</th>
                                 <th>Vendor</th>
-
+                                <th>Visibility</th>
                                 <th class="text-right">Action</th>
                             </tr>
                         </thead>
@@ -145,7 +158,22 @@
                                         <img src="<?= $base64 ?>" alt="No Image" class="img-thumbnail" style="height:100px;">
                                     </td>
                                     <td>
+                                        <span style="font-size:12px;color:#555;"><?= $row->article_number ? htmlspecialchars($row->article_number) : '<span class="text-muted">—</span>' ?></span>
+                                    </td>
+                                    <td>
+                                        <?php if (!empty($barcode_map[$row->id])): ?>
+                                            <?php foreach ($barcode_map[$row->id] as $bc): ?>
+                                                <code style="font-size:10px;display:block;white-space:nowrap;"><?= htmlspecialchars($bc['barcode']) ?></code>
+                                            <?php endforeach; ?>
+                                        <?php else: ?>
+                                            <span class="text-muted">—</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
                                         <?= $row->title ?>
+                                        <?php if ($row->itm_synced && $row->image == ''): ?>
+                                            <br><span class="label label-warning" style="font-size:10px;">Pending Setup</span>
+                                        <?php endif; ?>
                                     </td>
                                     <td>
                                         <?= $row->wsp; ?>
@@ -153,25 +181,46 @@
                                     </td>
                                     <td>
                                         <?php
-                                        if ($row->quantity > 5) {
+                                        $consolidated_qty = !empty($barcode_map[$row->id])
+                                            ? array_sum(array_column($barcode_map[$row->id], 'stock_qty'))
+                                            : (int)$row->quantity;
+                                        if ($consolidated_qty > 5) {
                                             $color = 'label-success';
-                                        }
-                                        if ($row->quantity <= 5) {
+                                        } elseif ($consolidated_qty > 0) {
                                             $color = 'label-warning';
-                                        }
-                                        if ($row->quantity == 0) {
+                                        } else {
                                             $color = 'label-danger';
                                         }
                                         ?>
                                         <span style="font-size:12px;" class="label <?= $color ?>">
-                                            <?= $row->quantity ?>
+                                            <?= $consolidated_qty ?>
                                         </span>
                                     </td>
                                     
                                     <td><?php echo $row->color; ?></td>
-                                    <td><?= $row->size_range ?></td>
+                                    <td>
+                                        <?php if (!empty($barcode_map[$row->id])): ?>
+                                            <?php foreach ($barcode_map[$row->id] as $bc): ?>
+                                                <div style="white-space:nowrap;line-height:1.8;">
+                                                    <span style="display:inline-block;min-width:32px;font-weight:600;font-size:12px;"><?= htmlspecialchars($bc['size']) ?></span>
+                                                    <span class="label <?= $bc['stock_qty'] > 5 ? 'label-success' : ($bc['stock_qty'] > 0 ? 'label-warning' : 'label-danger') ?>" style="font-size:11px;"><?= (int)$bc['stock_qty'] ?></span>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        <?php else: ?>
+                                            <?= $row->size_range ?: '<span class="text-muted">—</span>' ?>
+                                        <?php endif; ?>
+                                    </td>
                                     <td><?= $row->vendor_id > 0 ? '<a href="?show_vendor=' . $row->vendor_id . '">' . $row->vendor_name . '</a>' : 'No vendor' ?></td>
-                                    
+
+                                    <td>
+                                        <label class="visibility-toggle" style="margin:0;cursor:pointer;" title="<?= $row->visibility ? 'Live — click to hide' : 'Hidden — click to make live' ?>">
+                                            <input type="checkbox" class="visibility-checkbox" data-id="<?= $row->id ?>" <?= $row->visibility ? 'checked' : '' ?> style="display:none;">
+                                            <span class="label <?= $row->visibility ? 'label-success' : 'label-default' ?>" style="font-size:12px;padding:5px 10px;cursor:pointer;">
+                                                <?= $row->visibility ? '<i class="fa fa-eye"></i> Live' : '<i class="fa fa-eye-slash"></i> Hidden' ?>
+                                            </span>
+                                        </label>
+                                    </td>
+
                                     <td>
                                         <div class="pull-right">
                                             <a href="<?= base_url('admin/publish/' . $row->id) ?>" class="btn btn-info">Edit</a>
@@ -270,8 +319,31 @@
     }
     </script>
 
+<script>
+$(document).on('change', '.visibility-checkbox', function () {
+    var cb     = $(this);
+    var id     = cb.data('id');
+    var status = cb.is(':checked') ? 1 : 0;
+    var badge  = cb.siblings('span');
 
-
+    $.post('<?= base_url('admin/productStatusChange') ?>', { id: id, to_status: status }, function (res) {
+        if (res == 1) {
+            if (status === 1) {
+                badge.removeClass('label-default').addClass('label-success')
+                     .html('<i class="fa fa-eye"></i> Live');
+                cb.closest('label').attr('title', 'Live — click to hide');
+            } else {
+                badge.removeClass('label-success').addClass('label-default')
+                     .html('<i class="fa fa-eye-slash"></i> Hidden');
+                cb.closest('label').attr('title', 'Hidden — click to make live');
+            }
+        } else {
+            // Revert checkbox on failure
+            cb.prop('checked', !cb.prop('checked'));
+        }
+    });
+});
+</script>
 
 
 

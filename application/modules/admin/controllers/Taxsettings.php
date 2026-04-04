@@ -34,9 +34,11 @@ class Taxsettings extends ADMIN_Controller
 
             $tax_type = $this->input->post('tax_type') === 'inclusive' ? 'inclusive' : 'exclusive';
 
+            $tax_hsn = trim($this->input->post('tax_hsn') ?? '');
             $this->Home_admin_model->setValueStore('tax_enabled', $tax_enabled);
             $this->Home_admin_model->setValueStore('tax_type', $tax_type);
             $this->Home_admin_model->setValueStore('tax_rules', json_encode($rules));
+            $this->Home_admin_model->setValueStore('tax_hsn', $tax_hsn);
             $this->session->set_flashdata('tax_saved', 1);
             redirect('admin/taxsettings');
         }
@@ -52,6 +54,7 @@ class Taxsettings extends ADMIN_Controller
         $data['tax_type']    = $this->Home_admin_model->getValueStore('tax_type') ?: 'exclusive';
         $rulesJson            = $this->Home_admin_model->getValueStore('tax_rules');
         $data['tax_rules']   = ($rulesJson && $rulesJson !== '[]') ? json_decode($rulesJson, true) : [];
+        $data['tax_hsn']     = $this->Home_admin_model->getValueStore('tax_hsn') ?: '';
 
         $this->load->view('_parts/header', $head);
         $this->load->view('taxsettings', $data);

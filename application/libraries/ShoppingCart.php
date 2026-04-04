@@ -44,7 +44,7 @@ class ShoppingCart {
 
     private function addToCart($article_id, $mrp, $wsp, $session_id) {
         $set_qty = (int)get_product_quantity($article_id);
-        if ($set_qty <= 0) $set_qty = 4;
+        if ($set_qty <= 0) $set_qty = 1;
 
         $existing = $this->CI->db->get_where('cart_items', [
             'session_id' => $session_id,

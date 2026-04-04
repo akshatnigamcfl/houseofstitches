@@ -102,7 +102,7 @@ $tax = get_tax_breakdown($total1);
                 ?></dd>
 
                 <dt>Payment Method</dt>
-                <dd><?= htmlspecialchars($order_details->payment_type ?? 'Cash on Delivery') ?></dd>
+                <dd><?= htmlspecialchars(str_replace('cashOnDelivery', 'Advance Payment', $order_details->payment_type ?? 'Advance Payment')) ?></dd>
             </dl>
         </div>
 

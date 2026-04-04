@@ -90,8 +90,8 @@
                                     <option></option>
                                     <option value="1">Agent</option>
                                     <option value="2">Distributor</option>
-                                    <option value="3">Retailer</option>
-                                    <option value="4">Wholesaler</option>
+                                    <option value="3">Wholesaler</option>
+                                    <option value="4">Retailer</option>
                                 </select>
                             </div>
                             <div class="col-12 form-group">

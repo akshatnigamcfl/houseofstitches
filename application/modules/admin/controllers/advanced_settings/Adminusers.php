@@ -128,6 +128,17 @@ class Adminusers extends ADMIN_Controller
         $head['keywords'] = '';
         $data['users'] = $this->Admin_users_model->getAdminUsers();
         $data['Allusers'] = $this->Admin_users_model->getUsers();
+        // Build id → name map for resolving parent users from the agents field
+        $all_for_map = $this->db->select('id, name, company, type')->get('users_public')->result();
+        $user_map = [];
+        foreach ($all_for_map as $u) {
+            $user_map[(int)$u->id] = [
+                'name'    => $u->name,
+                'company' => $u->company,
+                'type'    => (int)$u->type,
+            ];
+        }
+        $data['user_map'] = $user_map;
        // print_r($data['Allusers']); die;
         $this->form_validation->set_rules('username', 'User', 'trim|required');
         if (isset($_POST['edit']) && $_POST['edit'] == 0) {
@@ -146,6 +157,7 @@ class Adminusers extends ADMIN_Controller
     }
     
 public function approve() {
+    header('Content-Type: application/json');
     $id    = $this->input->post('id');
     $role  = $this->input->post('role');
     $pcent = $this->input->post('pcent');
@@ -159,6 +171,9 @@ public function approve() {
     if (!$this->db->field_exists('remark', 'users_public')) {
         $this->db->query("ALTER TABLE users_public ADD COLUMN `remark` varchar(255) DEFAULT NULL");
     }
+    if (!$this->db->field_exists('agents', 'users_public')) {
+        $this->db->query("ALTER TABLE users_public ADD COLUMN `agents` varchar(255) DEFAULT NULL");
+    }
 
     $this->db->where('id', $id)->update('users_public', [
         'status'  => '1',
@@ -167,17 +182,70 @@ public function approve() {
         'remark'  => $rmark,
         'agents'  => $agent,
     ]);
-    if ($this->db->affected_rows() > 0) {
-        echo json_encode(['success' => true, 'message' => 'Approved successfully']);
-    } else {
-        echo json_encode(['success' => false, 'message' => 'No rows updated']);
-    }
+    echo json_encode(['success' => true, 'message' => 'Approved successfully']);
+    exit();
 }
 
 public function reject() {
-     $id = $this->input->post('id');
+    header('Content-Type: application/json');
+    $id = $this->input->post('id');
     $this->db->where('id', $id)->update('users_public', ['status' => '3']);
     echo json_encode(['success' => true]);
+    exit();
+}
+
+public function editPublicUser() {
+    $this->login_check();
+    header('Content-Type: application/json');
+
+    $id     = (int)$this->input->post('id');
+    if (!$id) { echo json_encode(['success' => false, 'message' => 'Invalid ID']); exit(); }
+
+    $name   = $this->input->post('name');
+    $phone  = $this->input->post('phone');
+    $email  = $this->input->post('email');
+    $address= $this->input->post('address');
+    $pan    = $this->input->post('pan');
+    $gst    = $this->input->post('gst');
+    $type   = (int)$this->input->post('type');
+    $pcent  = $this->input->post('pcent');
+    $remark = $this->input->post('remark');
+    $status = (int)$this->input->post('status');
+    $agents = $this->input->post('agents');
+
+    // Ensure optional columns exist before updating them
+    if (!$this->db->field_exists('remark', 'users_public')) {
+        $this->db->query("ALTER TABLE `users_public` ADD COLUMN `remark` VARCHAR(255) DEFAULT NULL");
+    }
+    if (!$this->db->field_exists('percent', 'users_public')) {
+        $this->db->query("ALTER TABLE `users_public` ADD COLUMN `percent` VARCHAR(20) DEFAULT NULL");
+    }
+    if (!$this->db->field_exists('agents', 'users_public')) {
+        $this->db->query("ALTER TABLE `users_public` ADD COLUMN `agents` VARCHAR(255) DEFAULT NULL");
+    }
+
+    $data = [
+        'name'    => $name,
+        'phone'   => $phone,
+        'email'   => $email,
+        'address' => $address,
+        'pan'     => $pan,
+        'gst'     => $gst,
+        'type'    => $type,
+        'status'  => $status,
+        'remark'  => $remark,
+    ];
+    if ($pcent !== '' && $pcent !== null) {
+        $data['percent'] = $pcent;
+    }
+    // Only update agents for retailers (type=4), or when explicitly sent
+    if ($agents !== null) {
+        $data['agents'] = trim($agents);
+    }
+
+    $this->db->where('id', $id)->update('users_public', $data);
+    echo json_encode(['success' => true]);
+    exit();
 }
 
 

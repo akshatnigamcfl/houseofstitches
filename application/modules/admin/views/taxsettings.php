@@ -39,6 +39,14 @@
                     </div>
                 </div>
 
+                <div class="form-group">
+                    <label><strong>HSN Code</strong></label>
+                    <input type="text" name="tax_hsn" class="form-control" style="max-width:220px;"
+                           value="<?= htmlspecialchars($tax_hsn) ?>"
+                           placeholder="e.g. 6111">
+                    <p class="help-block">HSN (Harmonized System of Nomenclature) code printed on invoices. Leave blank to omit.</p>
+                </div>
+
                 <h4>Tax Rules <small>(applied based on order total)</small></h4>
                 <p class="help-block">Add rules to define the tax rate for different order amounts. Rules are evaluated top-to-bottom; the first matching rule applies. Leave <em>Max Amount</em> blank for "and above".</p>
 

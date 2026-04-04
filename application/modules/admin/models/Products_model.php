@@ -11,17 +11,28 @@ class Products_model extends CI_Model
 
     private function _ensureProductColumns()
     {
-        $cols = ['season' => 'VARCHAR(100)', 'gender' => 'VARCHAR(50)', 'fabric' => 'VARCHAR(100)', 'brand' => 'VARCHAR(100)'];
+        if (!$this->db->field_exists('parent_id', 'products')) {
+            $this->db->query("ALTER TABLE `products` ADD COLUMN `parent_id` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '0 = standalone/parent, >0 = child of that product id'");
+        }
+        $cols = ['season' => 'VARCHAR(100)', 'gender' => 'VARCHAR(50)', 'fabric' => 'VARCHAR(100)', 'brand' => 'VARCHAR(100)', 'sub_category' => 'VARCHAR(150)', 'fabric_category' => 'VARCHAR(150)', 'fabric_type' => 'VARCHAR(150)', 'fabric_composition' => 'VARCHAR(255)'];
         foreach ($cols as $col => $type) {
             if (!$this->db->field_exists($col, 'products_translations')) {
                 $this->db->query("ALTER TABLE `products_translations` ADD COLUMN `$col` $type DEFAULT NULL");
             }
+        }
+        if (!$this->db->field_exists('article_number', 'products')) {
+            $this->db->query("ALTER TABLE `products` ADD COLUMN `article_number` VARCHAR(100) DEFAULT NULL");
         }
         // Fix gender column if it exists as a numeric type (tinyint) instead of VARCHAR
         $genderInfo = $this->db->query("SHOW COLUMNS FROM `products_translations` LIKE 'gender'")->row_array();
         if ($genderInfo && stripos($genderInfo['Type'], 'int') !== false) {
             $this->db->query("ALTER TABLE `products_translations` MODIFY COLUMN `gender` VARCHAR(50) DEFAULT NULL");
             $this->db->query("UPDATE `products_translations` SET `gender` = NULL WHERE `gender` = '0' OR `gender` = ''");
+        }
+        // Fix folder column — was int, needs to be VARCHAR to store names like 'p12345'
+        $folderInfo = $this->db->query("SHOW COLUMNS FROM `products` LIKE 'folder'")->row_array();
+        if ($folderInfo && stripos($folderInfo['Type'], 'int') !== false) {
+            $this->db->query("ALTER TABLE `products` MODIFY COLUMN `folder` VARCHAR(255) DEFAULT NULL");
         }
     }
 
@@ -49,11 +60,16 @@ class Products_model extends CI_Model
     {
         if ($search_title != null) {
             $search_title = trim($this->db->escape_like_str($search_title));
-            $this->db->where("(products_translations.title LIKE '%$search_title%')");
+            $this->db->where("(products_translations.title LIKE '%$search_title%' OR products.article_number LIKE '%$search_title%')");
         }
         if ($category != null) {
             $this->db->where('shop_categorie', $category);
         }
+        if (isset($_GET['itm_synced']) && $_GET['itm_synced'] == '1') {
+            $this->db->where('products.itm_synced', 1)->where('products.image', '');
+        }
+        // Exclude DB2 parent container products (they have no color and are not purchasable)
+        $this->db->where("(products.itm_synced = 0 OR products.db2_color_no IS NOT NULL)");
         $this->db->join('products_translations', 'products_translations.for_id = products.id', 'left');
         $this->db->where('products_translations.abbr', MY_DEFAULT_LANGUAGE_ABBR);
         return $this->db->count_all_results('products');
@@ -63,7 +79,7 @@ class Products_model extends CI_Model
     {
         if ($search_title != null) {
             $search_title = trim($this->db->escape_like_str($search_title));
-            $this->db->where("(products_translations.title LIKE '%$search_title%')");
+            $this->db->where("(products_translations.title LIKE '%$search_title%' OR products.article_number LIKE '%$search_title%')");
         }
         if ($orderby !== null) {
             $ord = explode('=', $orderby);
@@ -79,6 +95,11 @@ class Products_model extends CI_Model
         if ($vendor != null) {
             $this->db->where('vendor_id', $vendor);
         }
+        if (isset($_GET['itm_synced']) && $_GET['itm_synced'] == '1') {
+            $this->db->where('products.itm_synced', 1)->where('products.image', '');
+        }
+        // Exclude DB2 parent container products (they have no color and are not purchasable)
+        $this->db->where("(products.itm_synced = 0 OR products.db2_color_no IS NOT NULL)");
         $this->db->join('vendors', 'vendors.id = products.vendor_id', 'left');
         $this->db->join('products_translations', 'products_translations.for_id = products.id', 'left');
         $this->db->where('products_translations.abbr', MY_DEFAULT_LANGUAGE_ABBR);
@@ -103,7 +124,11 @@ class Products_model extends CI_Model
         products_translations.season,
         products_translations.gender,
         products_translations.fabric,
-        products_translations.brand');
+        products_translations.brand,
+        products_translations.sub_category,
+        products_translations.fabric_category,
+        products_translations.fabric_type,
+        products_translations.fabric_composition');
         $this->db->where('products.id', $id);
         $this->db->join('vendors', 'vendors.id = products.vendor_id', 'left');
         $this->db->join('products_translations', 'products_translations.for_id = products.id', 'inner');
@@ -143,6 +168,7 @@ class Products_model extends CI_Model
                         'position' => $post['position'],
                         'virtual_products' => $post['virtual_products'],
                         'brand_id' => $post['brand_id'],
+                        'article_number' => isset($post['article_number']) ? trim($post['article_number']) : null,
                         'time_update' => time()
                     ))) {
                 log_message('error', print_r($this->db->error(), true));
@@ -170,6 +196,7 @@ class Products_model extends CI_Model
                         'virtual_products' => $post['virtual_products'],
                         'folder' => $post['folder'],
                         'brand_id' => $post['brand_id'],
+                        'article_number' => isset($post['article_number']) ? trim($post['article_number']) : null,
                         'time' => time()
                     ))) {
                 log_message('error', print_r($this->db->error(), true));
@@ -193,7 +220,7 @@ class Products_model extends CI_Model
         return $id;
     }
 
-    public function saveVariations($product_id, $colors, $sizes, $swatches = [], $hexes = [])
+    public function saveVariations($product_id, $colors, $sizes, $swatches = [], $hexes = [], $images = [])
     {
         $this->db->query("CREATE TABLE IF NOT EXISTS `product_variations` (
             `id` int NOT NULL AUTO_INCREMENT,
@@ -202,6 +229,7 @@ class Products_model extends CI_Model
             `sizes` varchar(500) DEFAULT NULL,
             `swatch` varchar(200) DEFAULT NULL,
             `hex` varchar(20) DEFAULT NULL,
+            `images` TEXT DEFAULT NULL,
             PRIMARY KEY (`id`),
             KEY `product_id` (`product_id`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3");
@@ -212,12 +240,15 @@ class Products_model extends CI_Model
         if (!$this->db->field_exists('hex', 'product_variations')) {
             $this->db->query("ALTER TABLE `product_variations` ADD COLUMN `hex` varchar(20) DEFAULT NULL");
         }
+        if (!$this->db->field_exists('images', 'product_variations')) {
+            $this->db->query("ALTER TABLE `product_variations` ADD COLUMN `images` TEXT DEFAULT NULL");
+        }
 
-        // Preserve existing swatches for rows that don't have a new upload
+        // Preserve existing swatches/images for rows that don't have a new upload
         $existing = [];
         $rows = $this->db->where('product_id', $product_id)->get('product_variations')->result_array();
         foreach ($rows as $r) {
-            $existing[] = $r['swatch'];
+            $existing[] = ['swatch' => $r['swatch'], 'images' => $r['images'] ?? ''];
         }
 
         $this->db->where('product_id', $product_id)->delete('product_variations');
@@ -226,14 +257,20 @@ class Products_model extends CI_Model
             $color = trim($color);
             $size  = isset($sizes[$i]) ? trim($sizes[$i]) : '';
             $hex   = isset($hexes[$i]) ? trim($hexes[$i]) : '';
-            if ($color === '' && $size === '' && empty($swatches[$i])) {
+            if ($color === '' && $size === '' && empty($swatches[$i]) && empty($images[$i])) {
                 continue;
             }
             $swatch = '';
             if (!empty($swatches[$i])) {
                 $swatch = trim($swatches[$i]);
-            } elseif (isset($existing[$i]) && $existing[$i] !== '') {
-                $swatch = $existing[$i];
+            } elseif (isset($existing[$i]['swatch']) && $existing[$i]['swatch'] !== '') {
+                $swatch = $existing[$i]['swatch'];
+            }
+            $imgs = '';
+            if (!empty($images[$i])) {
+                $imgs = trim($images[$i]);
+            } elseif (isset($existing[$i]['images']) && $existing[$i]['images'] !== '') {
+                $imgs = $existing[$i]['images'];
             }
             $this->db->insert('product_variations', [
                 'product_id' => $product_id,
@@ -241,6 +278,7 @@ class Products_model extends CI_Model
                 'sizes'      => $size,
                 'swatch'     => $swatch,
                 'hex'        => $hex,
+                'images'     => $imgs,
             ]);
         }
     }
@@ -256,9 +294,55 @@ class Products_model extends CI_Model
         if (!$this->db->field_exists('hex', 'product_variations')) {
             $this->db->query("ALTER TABLE `product_variations` ADD COLUMN `hex` varchar(20) DEFAULT NULL");
         }
+        if (!$this->db->field_exists('images', 'product_variations')) {
+            $this->db->query("ALTER TABLE `product_variations` ADD COLUMN `images` TEXT DEFAULT NULL");
+        }
         return $this->db->where('product_id', $product_id)
                         ->get('product_variations')
                         ->result_array();
+    }
+
+    // ── Parent / Child product methods ───────────────────────────────────────
+
+    /**
+     * Get all child products of a parent, with title + image.
+     */
+    public function getChildren($parent_id)
+    {
+        return $this->db
+            ->select('products.id, products.image, products.quantity, products.visibility, products.article_number, products_translations.title, products_translations.color, products_translations.size_range, products_translations.wsp, products_translations.msp')
+            ->join('products_translations', 'products_translations.for_id = products.id', 'left')
+            ->where('products_translations.abbr', MY_DEFAULT_LANGUAGE_ABBR)
+            ->where('products.parent_id', (int)$parent_id)
+            ->get('products')
+            ->result_array();
+    }
+
+    /**
+     * Set a product as a child of $parent_id. Pass 0 to unlink.
+     */
+    public function setParentId($product_id, $parent_id)
+    {
+        return $this->db->where('id', (int)$product_id)
+                        ->update('products', ['parent_id' => (int)$parent_id]);
+    }
+
+    /**
+     * Search products by title or article_number for the link-child autocomplete.
+     * Excludes the parent product itself and products that already have children (can't be children of something else and parents at the same time).
+     */
+    public function searchForLinking($q, $exclude_id)
+    {
+        $safe = $this->db->escape_like_str(trim($q));
+        return $this->db
+            ->select('products.id, products_translations.title, products.image, products.article_number, products.parent_id')
+            ->join('products_translations', 'products_translations.for_id = products.id', 'left')
+            ->where('products_translations.abbr', MY_DEFAULT_LANGUAGE_ABBR)
+            ->where("products.id != " . (int)$exclude_id)
+            ->where("(products_translations.title LIKE '%{$safe}%' OR products.article_number LIKE '%{$safe}%')")
+            ->limit(10)
+            ->get('products')
+            ->result_array();
     }
 
     private function setProductTranslation($post, $id, $is_update)
@@ -294,6 +378,10 @@ class Products_model extends CI_Model
                 'gender' => isset($post['gender']) ? $post['gender'] : '',
                 'fabric' => isset($post['fabric']) ? $post['fabric'] : '',
                 'brand' => isset($post['brand']) ? $post['brand'] : '',
+                'sub_category' => isset($post['sub_category']) ? $post['sub_category'] : '',
+                'fabric_category' => isset($post['fabric_category']) ? $post['fabric_category'] : '',
+                'fabric_type' => isset($post['fabric_type']) ? $post['fabric_type'] : '',
+                'fabric_composition' => isset($post['fabric_composition']) ? $post['fabric_composition'] : '',
                 'abbr' => $abbr,
                 'for_id' => $id
             );

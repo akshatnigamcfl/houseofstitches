@@ -71,9 +71,8 @@ if (empty($gallery) && $p_image) $gallery[] = $p_image;
               <span class="brand-badge-animated position-absolute top-0 start-0 m-2"><?= htmlspecialchars($p_brand) ?></span>
             <?php endif; ?>
           </div>
-          <!-- Thumbnails -->
-          <?php if (count($gallery) > 1): ?>
-          <div class="d-flex flex-wrap gap-2" id="pdThumbs">
+          <!-- Thumbnails — always rendered so JS can populate with variation images -->
+          <div class="d-flex flex-wrap gap-2" id="pdThumbs" <?= count($gallery) <= 1 ? 'style="display:none;"' : '' ?>>
             <?php foreach ($gallery as $i => $img): ?>
               <div class="pd-thumb <?= $i === 0 ? 'active' : '' ?>"
                    data-src="<?= $img ?>"
@@ -84,7 +83,6 @@ if (empty($gallery) && $p_image) $gallery[] = $p_image;
               </div>
             <?php endforeach; ?>
           </div>
-          <?php endif; ?>
         </div>
       </div>
 
@@ -107,20 +105,29 @@ if (empty($gallery) && $p_image) $gallery[] = $p_image;
         <!-- Price -->
         <div class="mb-3">
           <?php if ($p_msp): ?>
-            <span class="text-muted me-2">MRP: ₹<?= htmlspecialchars($p_msp) ?></span>
+            <span class="text-muted me-2">MRP: ₹<?= htmlspecialchars($p_msp) ?> <span style="font-size:12px;font-weight:400;">/ per piece</span></span>
           <?php endif; ?>
           <?php if ($p_wsp): ?>
-            <strong class="fs-5">WSP: ₹<?= htmlspecialchars($p_wsp) ?></strong>
+            <strong class="fs-5">WSP: ₹<?= htmlspecialchars($p_wsp) ?></strong> <span class="text-muted" style="font-size:13px;">/ per piece</span>
           <?php endif; ?>
         </div>
 
         <hr>
 
         <!-- Details grid -->
-        <?php $details = array_filter([
-          'Category'   => $p_catname,
-          'Fabric'     => $p_fabric,
-          'Season'     => $p_season,
+        <?php
+        $p_sub_category      = isset($product['sub_category'])      ? $product['sub_category']      : '';
+        $p_fabric_category   = isset($product['fabric_category'])   ? $product['fabric_category']   : '';
+        $p_fabric_type       = isset($product['fabric_type'])       ? $product['fabric_type']       : '';
+        $p_fabric_composition= isset($product['fabric_composition'])? $product['fabric_composition']: '';
+        $details = array_filter([
+          'Category'          => $p_catname,
+          'Sub Category'      => $p_sub_category,
+          'Fabric Category'   => $p_fabric_category,
+          'Fabric'            => $p_fabric,
+          'Fabric Type'       => $p_fabric_type,
+          'Fabric Composition'=> $p_fabric_composition,
+          'Season'            => $p_season,
         ]); ?>
         <?php if (!empty($details)): ?>
         <div class="row g-2 mb-3 small">
@@ -183,6 +190,107 @@ if (empty($gallery) && $p_image) $gallery[] = $p_image;
             return (0.299*$r + 0.587*$g + 0.114*$b) < 140;
         }
         ?>
+        <?php
+        // Color siblings swatches
+        $siblings = isset($color_siblings) ? $color_siblings : [];
+        if (!empty($siblings) || !empty($p_color)):
+        ?>
+        <div class="mb-3">
+          <p class="fw-semibold mb-2">Color:
+            <span class="text-muted fw-normal ms-1"><?= htmlspecialchars(ucwords(strtolower($p_color))) ?></span>
+          </p>
+          <div class="d-flex flex-wrap gap-2 align-items-center">
+            <!-- Current product swatch (selected) -->
+            <?php if ($p_color):
+              $curHex   = pd_color_hex($p_color, $colorMap);
+              $curDark  = pd_is_dark($curHex);
+            ?>
+            <div title="<?= htmlspecialchars(ucwords(strtolower($p_color))) ?>"
+                 style="position:relative;cursor:default;">
+              <div style="
+                width:44px;height:44px;border-radius:6px;
+                background:<?= $curHex ?>;
+                outline:2px solid #111;outline-offset:3px;
+              "></div>
+              <div style="font-size:10px;text-align:center;margin-top:3px;color:#111;font-weight:600;">
+                <?= htmlspecialchars(ucwords(strtolower($p_color))) ?>
+              </div>
+            </div>
+            <?php endif; ?>
+            <!-- Sibling swatches -->
+            <?php foreach ($siblings as $sib):
+              $sibColor = trim($sib['color']);
+              $sibHex   = pd_color_hex($sibColor, $colorMap);
+              $sibDark  = pd_is_dark($sibHex);
+              $sibUrl   = base_url($sib['url'] . '_' . $sib['id']);
+              $sibOos   = (int)$sib['quantity'] === 0;
+            ?>
+            <a href="<?= $sibUrl ?>"
+               title="<?= htmlspecialchars(ucwords(strtolower($sibColor))) ?><?= $sibOos ? ' (Out of Stock)' : '' ?>"
+               style="text-decoration:none;">
+              <div style="
+                width:44px;height:44px;border-radius:6px;
+                background:<?= $sibHex ?>;
+                outline:2px solid rgba(0,0,0,.15);outline-offset:0;
+                transition:outline-color .15s,outline-offset .15s;
+                <?= $sibOos ? 'opacity:.45;' : '' ?>
+                position:relative;overflow:hidden;
+              ">
+                <?php if ($sibOos): ?>
+                  <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+                    <div style="width:120%;height:2px;background:rgba(180,0,0,.6);transform:rotate(-45deg);"></div>
+                  </div>
+                <?php endif; ?>
+              </div>
+              <div style="font-size:10px;text-align:center;margin-top:3px;color:#555;">
+                <?= htmlspecialchars(ucwords(strtolower($sibColor))) ?>
+              </div>
+            </a>
+            <?php endforeach; ?>
+          </div>
+        </div>
+        <?php endif; ?>
+
+        <?php
+        // Set info from barcodes
+        $set_barcodes      = isset($product_barcodes) ? $product_barcodes : [];
+        $available_sizes   = array_filter($set_barcodes, fn($b) => (int)$b['stock_qty'] > 0);
+        $set_count         = count($available_sizes);
+        $total_sizes       = count($set_barcodes);
+        ?>
+        <?php if (!empty($set_barcodes)): ?>
+          <!-- Set indicator -->
+          <div class="mb-3">
+            <span class="badge rounded-pill" style="background:#111;color:#fff;font-size:13px;padding:6px 14px;letter-spacing:.3px;">
+              Set of <?= $set_count ?>
+              <?php if ($set_count < $total_sizes): ?>
+                <span style="opacity:.65;font-weight:400;font-size:11px;"> (<?= $total_sizes - $set_count ?> size<?= ($total_sizes - $set_count) > 1 ? 's' : '' ?> out of stock)</span>
+              <?php endif; ?>
+            </span>
+          </div>
+          <!-- Size availability chips -->
+          <div class="mb-3">
+            <p class="fw-semibold mb-2">Sizes included in this set:</p>
+            <div class="d-flex flex-wrap gap-2">
+              <?php foreach ($set_barcodes as $bc): ?>
+                <?php $in_stock = (int)$bc['stock_qty'] > 0; ?>
+                <div style="
+                  display:inline-flex;flex-direction:column;align-items:center;gap:3px;
+                  min-width:48px;padding:6px 10px;border-radius:8px;text-align:center;
+                  border:1.5px solid <?= $in_stock ? '#198754' : '#dee2e6' ?>;
+                  background:<?= $in_stock ? '#f0fdf4' : '#f8f9fa' ?>;
+                  <?= !$in_stock ? 'opacity:.55;position:relative;' : '' ?>
+                ">
+                  <span style="font-weight:700;font-size:13px;color:<?= $in_stock ? '#111' : '#999' ?>;"><?= htmlspecialchars($bc['size']) ?></span>
+                  <?php if (!$in_stock): ?>
+                    <span style="font-size:9px;color:#dc3545;font-weight:600;letter-spacing:.2px;">OUT OF STOCK</span>
+                  <?php endif; ?>
+                </div>
+              <?php endforeach; ?>
+            </div>
+          </div>
+        <?php endif; ?>
+
         <?php if (!empty($variations)): ?>
           <div class="mb-2">
             <p class="fw-semibold mb-1">Color: <span id="pdColorName" class="text-muted fw-normal"></span></p>
@@ -199,11 +307,18 @@ if (empty($gallery) && $p_image) $gallery[] = $p_image;
                 $swatchFile = $vSwatch;
                 $swatchUrl  = $swatchFile ? base_url('attachments/product_swatches/' . $swatchFile) : '';
                 $colorLabel = $vColor ? htmlspecialchars(ucwords(strtolower($vColor))) : '';
+                $vImgUrls = [];
+                if (!empty($v['images'])) {
+                    foreach (array_filter(array_map('trim', explode(',', $v['images']))) as $imgFile) {
+                        $vImgUrls[] = base_url('attachments/variation_images/' . $imgFile);
+                    }
+                }
               ?>
                 <div class="color-swatch-wrap <?= $firstVar ? 'selected' : '' ?>"
                      data-color="<?= htmlspecialchars($vColor) ?>"
                      data-sizes="<?= htmlspecialchars($v['sizes']) ?>"
                      data-hex="<?= $hex ?>"
+                     data-images="<?= htmlspecialchars(implode(',', $vImgUrls)) ?>"
                      title="<?= $colorLabel ?>">
                   <div class="color-swatch-thumb" style="<?= $swatchUrl ? '' : 'background:' . $hex . ';' ?>">
                     <?php if ($swatchUrl): ?>
@@ -234,12 +349,8 @@ if (empty($gallery) && $p_image) $gallery[] = $p_image;
                 </span>
               </p>
             <?php endif; ?>
-            <?php if ($p_sizes): ?>
-              <p class="fw-semibold mb-1">Size</p>
-              <select id="pdSizeSelect" class="mb-2">
-                <option value="">— Select Size —</option>
-              </select>
-              <div class="size-error fw-semibold text-danger small" id="pdSizeError" style="display:none;">PLEASE SELECT A SIZE</div>
+            <?php if ($p_sizes && empty($set_barcodes)): ?>
+              <p class="fw-semibold mb-1">Size Range: <span class="text-muted fw-normal"><?= htmlspecialchars($p_sizes) ?></span></p>
             <?php endif; ?>
           </div>
         <?php endif; ?>
@@ -366,7 +477,47 @@ if (empty($gallery) && $p_image) $gallery[] = $p_image;
   var productMrp  = <?= json_encode($p_msp) ?>;
   var selectedColor = '', selectedSize = '';
 
-  // Thumbnail gallery
+  // Default gallery images (from folder/main image)
+  var defaultGallery = <?= json_encode($gallery) ?>;
+  var fallbackSrc = '<?= $fallback ?>';
+
+  function setGallery(imgs) {
+    var mainImg = document.getElementById('pdMainImg');
+    var thumbsDiv = document.getElementById('pdThumbs');
+    if (!mainImg) return;
+    if (!imgs || !imgs.length) imgs = defaultGallery;
+
+    // Update main image
+    mainImg.style.opacity = '0.5';
+    mainImg.src = imgs[0] || fallbackSrc;
+    mainImg.onload = function(){ mainImg.style.opacity = '1'; };
+
+    if (!thumbsDiv) return;
+
+    // Rebuild thumbnail strip (show for >=2 images, hide for <=1)
+    thumbsDiv.innerHTML = '';
+    if (imgs.length >= 2) {
+      imgs.forEach(function(url, i) {
+        var div = document.createElement('div');
+        div.className = 'pd-thumb' + (i === 0 ? ' active' : '');
+        div.dataset.src = url;
+        div.style.cssText = 'width:72px;height:72px;border:2px solid '+(i===0?'#111':'#ddd')+';border-radius:6px;overflow:hidden;cursor:pointer;flex-shrink:0;';
+        div.innerHTML = '<img src="'+url+'" style="width:100%;height:100%;object-fit:cover;" onerror="this.onerror=null;this.src=\''+fallbackSrc+'\'">';
+        div.addEventListener('click', function(){
+          document.querySelectorAll('.pd-thumb').forEach(function(t){ t.classList.remove('active'); t.style.borderColor='#ddd'; });
+          div.classList.add('active'); div.style.borderColor='#111';
+          var mi = document.getElementById('pdMainImg');
+          if (mi) { mi.style.opacity='0.5'; mi.src=url; mi.onload=function(){ mi.style.opacity='1'; }; }
+        });
+        thumbsDiv.appendChild(div);
+      });
+      thumbsDiv.style.display = '';
+    } else {
+      thumbsDiv.style.display = 'none';
+    }
+  }
+
+  // Thumbnail gallery (default page-load clicks)
   document.querySelectorAll('.pd-thumb').forEach(function(thumb){
     thumb.addEventListener('click', function(){
       document.querySelectorAll('.pd-thumb').forEach(function(t){ t.classList.remove('active'); t.style.borderColor='#ddd'; });
@@ -412,6 +563,9 @@ if (empty($gallery) && $p_image) $gallery[] = $p_image;
         var colorNameEl = document.getElementById('pdColorName');
         if (colorNameEl) colorNameEl.innerText = fmtColor(chip.dataset.color);
         renderSizes(chip.dataset.sizes || '');
+        // Swap gallery if variation has images
+        var imgs = chip.dataset.images ? chip.dataset.images.split(',').map(function(s){ return s.trim(); }).filter(Boolean) : [];
+        setGallery(imgs.length ? imgs : null);
       };
     });
     // Auto-select first
@@ -421,6 +575,8 @@ if (empty($gallery) && $p_image) $gallery[] = $p_image;
       var colorNameEl = document.getElementById('pdColorName');
       if (colorNameEl) colorNameEl.innerText = fmtColor(first.dataset.color);
       renderSizes(first.dataset.sizes || '');
+      var firstImgs = first.dataset.images ? first.dataset.images.split(',').map(function(s){ return s.trim(); }).filter(Boolean) : [];
+      if (firstImgs.length) setGallery(firstImgs);
     }
   } else if (fallbackSizes) {
     renderSizes(fallbackSizes);

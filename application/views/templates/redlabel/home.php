@@ -137,7 +137,7 @@
     </div>
     <?php endif; ?>
 
-    <?php if (!empty($newProducts)): ?>
+    <?php if (!empty($newProducts) && is_logged_in()): ?>
     <h2 class="h2_heading text-center mt-5 mb-4">New Arrivals</h2>
     <div class="row g-3">
       <?php foreach ($newProducts as $product): ?>

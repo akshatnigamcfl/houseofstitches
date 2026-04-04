@@ -63,6 +63,10 @@ $route['(\w{2})?/?checkout/order-error'] = 'checkout/orderError';
 
 // Ajax called. Functions for managing shopping cart
 $route['ajax_cart_filter'] = 'home/ajax_cart_filter';
+$route['add_client'] = 'home/add_client';
+$route['edit_client'] = 'home/edit_client';
+$route['request_commission'] = 'home/request_commission';
+$route['get_client_stats/(:num)'] = 'home/get_client_stats/$1';
 $route['(\w{2})?/?manageShoppingCart'] = 'home/manageShoppingCart';
 $route['(\w{2})?/?clearShoppingCart'] = 'home/clearShoppingCart';
 $route['(\w{2})?/?discountCodeChecker'] = 'home/discountCodeChecker';
@@ -196,7 +200,14 @@ $route['admin/orders'] = "admin/ecommerce/orders";
 $route['admin/orders/(:num)'] = "admin/ecommerce/orders/index/$1";
 $route['admin/changeOrdersOrderStatus'] = "admin/ecommerce/orders/changeOrdersOrderStatus";
 $route['admin/orders/delete/(:num)'] = "admin/ecommerce/orders/deleteOrder/$1";
+$route['admin/orders/setDispatchQty'] = "admin/ecommerce/orders/setDispatchQty";
+$route['admin/orders/setTracking'] = "admin/ecommerce/orders/setTracking";
+$route['admin/orders/recordPayment'] = "admin/ecommerce/orders/recordPayment";
+$route['admin/orders/getOrderPayments/(:num)'] = "admin/ecommerce/orders/getOrderPayments/$1";
+$route['admin/orders/detail/(:num)'] = "admin/ecommerce/orders/detail/$1";
 $route['admin/brands'] = "admin/ecommerce/brands";
+$route['admin/product-attributes'] = "admin/ecommerce/ProductAttributes";
+$route['admin/db2-sync'] = "admin/ecommerce/Sync";
 $route['admin/changePosition'] = "admin/ecommerce/ShopCategories/changePosition";
 $route['admin/discounts'] = "admin/ecommerce/discounts";
 $route['admin/discounts/(:num)'] = "admin/ecommerce/discounts/index/$1";
@@ -221,14 +232,23 @@ $route['admin/emails/(:num)'] = "admin/settings/emails/index/$1";
 $route['admin/history'] = "admin/settings/history";
 $route['admin/history/(:num)'] = "admin/settings/history/index/$1";
 // ADVANCED SETTINGS
-$route['admin/languages'] = "admin/advanced_settings/languages";
-$route['admin/filemanager'] = "admin/advanced_settings/filemanager";
 $route['admin/adminusers'] = "admin/advanced_settings/adminusers";
 $route['admin/approve'] = "admin/advanced_settings/adminusers/approve";
 $route['admin/reject'] = "admin/advanced_settings/adminusers/reject";
 $route['admin/import'] = "admin/advanced_settings/adminusers/import";
 $route['admin/adminusers/get_data'] = "admin/advanced_settings/adminusers/get_data";
 $route['admin/import_users_agent'] = "admin/advanced_settings/adminusers/import_users_agent";
+$route['admin/editPublicUser'] = "admin/advanced_settings/adminusers/editPublicUser";
+$route['home/submit_payment_receipt'] = 'home/submit_payment_receipt';
+$route['submit_claim'] = 'home/submit_claim';
+$route['admin/claims'] = 'admin/ecommerce/claims/index';
+$route['admin/claims/updateStatus'] = 'admin/ecommerce/claims/updateStatus';
+$route['admin/gr_returns'] = 'admin/ecommerce/gr_returns/index';
+$route['admin/gr_returns/updateStatus'] = 'admin/ecommerce/gr_returns/updateStatus';
+$route['submit_gr'] = 'home/submit_gr';
+$route['admin/payment_receipts'] = "admin/ecommerce/payments/index";
+$route['admin/verifyPayment'] = "admin/ecommerce/payments/verifyPayment";
+$route['admin/rejectPayment'] = "admin/ecommerce/payments/rejectPayment";
 // TEXTUAL PAGES
 $route['admin/pageedit/(:any)'] = "admin/textual_pages/TextualPages/pageEdit/$1";
 $route['admin/changePageStatus'] = "admin/textual_pages/TextualPages/changePageStatus";
@@ -239,6 +259,11 @@ $route['admin/changePass'] = "admin/home/home/changePass";
 $route['admin/uploadOthersImages'] = "admin/ecommerce/publish/do_upload_others_images";
 $route['admin/loadOthersImages'] = "admin/ecommerce/publish/loadOthersImages";
 $route['admin/uploadSwatch'] = "admin/ecommerce/publish/upload_swatch";
+$route['admin/uploadVariationImage'] = "admin/ecommerce/publish/upload_variation_image";
+$route['admin/uploadExtraImage'] = "admin/ecommerce/publish/upload_extra_image";
+$route['admin/linkChild']      = "admin/ecommerce/publish/linkChild";
+$route['admin/unlinkChild']    = "admin/ecommerce/publish/unlinkChild";
+$route['admin/searchProducts'] = "admin/ecommerce/publish/searchProducts";
 // VENDORS
 $route['admin/listvendors'] = "admin/vendors/listvendors";
 

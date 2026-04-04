@@ -40,6 +40,7 @@ class Orders extends ADMIN_Controller
         $data['count_pending']   = $this->Orders_model->ordersCount(false, 0);
         $data['count_processed'] = $this->Orders_model->ordersCount(false, 1);
         $data['count_rejected']  = $this->Orders_model->ordersCount(false, 2);
+        $data['count_rtd']       = $this->Orders_model->ordersCount(false, 3);
         if (isset($_POST['paypal_sandbox'])) {
             $this->Home_admin_model->setValueStore('paypal_sandbox', $_POST['paypal_sandbox']);
             if ($_POST['paypal_sandbox'] == 1) {
@@ -75,6 +76,18 @@ class Orders extends ADMIN_Controller
         $data['shippingOrder'] = $this->Home_admin_model->getValueStore('shippingOrder');
         $data['cashondelivery_visibility'] = $this->Home_admin_model->getValueStore('cashondelivery_visibility');
         $data['bank_account'] = $this->Orders_model->getBankAccountSettings();
+
+        // GR request statuses per order (for badges on list)
+        $data['gr_by_order'] = [];
+        if ($this->db->table_exists('gr_requests')) {
+            $gr_rows = $this->db->select('order_id, status')->get('gr_requests')->result_array();
+            foreach ($gr_rows as $g) {
+                $oid = (int)$g['order_id'];
+                if (!isset($data['gr_by_order'][$oid])) $data['gr_by_order'][$oid] = [];
+                $data['gr_by_order'][$oid][] = $g['status'];
+            }
+        }
+
         $this->load->view('_parts/header', $head);
         $this->load->view('ecommerce/orders', $data);
         $this->load->view('_parts/footer');
@@ -122,6 +135,128 @@ class Orders extends ADMIN_Controller
             echo 0;
         }
         $this->saveHistory('Change status of Order Id ' . $_POST['the_id'] . ' to status ' . $_POST['to_status']);
+    }
+
+    /**
+     * POST: order_id, dispatch[product_id] = qty
+     * Sets per-product dispatch quantities and recalculates billing_amount.
+     */
+    public function setDispatchQty()
+    {
+        $this->login_check();
+        header('Content-Type: application/json');
+        $order_id = (int)$this->input->post('order_id');
+        $dispatch = $this->input->post('dispatch') ?: [];
+        if (!$order_id) { echo json_encode(['success' => false, 'msg' => 'Invalid order']); return; }
+        $ok = $this->Orders_model->setDispatchQuantities($order_id, $dispatch);
+        echo json_encode(['success' => (bool)$ok]);
+        $this->saveHistory('Set dispatch quantities for Order DB id ' . $order_id);
+    }
+
+    /**
+     * POST: order_id, courier, tracking_id
+     */
+    public function setTracking()
+    {
+        $this->login_check();
+        header('Content-Type: application/json');
+        $order_id   = (int)$this->input->post('order_id');
+        $courier    = $this->input->post('courier');
+        $tracking   = $this->input->post('tracking_id');
+        if (!$order_id) { echo json_encode(['success' => false]); return; }
+        $this->Orders_model->setTracking($order_id, $courier, $tracking);
+        echo json_encode(['success' => true]);
+        $this->saveHistory('Set tracking for Order DB id ' . $order_id . ': ' . $courier . ' / ' . $tracking);
+    }
+
+    /**
+     * POST: order_id, amount, mode, reference, notes
+     * Records a payment against an order and updates ledger.
+     */
+    public function recordPayment()
+    {
+        $this->login_check();
+        header('Content-Type: application/json');
+        $order_id  = (int)$this->input->post('order_id');
+        $amount    = (float)$this->input->post('amount');
+        $mode      = $this->input->post('mode') ?: 'bank';
+        $reference = $this->input->post('reference') ?: '';
+        $notes     = $this->input->post('notes') ?: '';
+        if (!$order_id || $amount <= 0) { echo json_encode(['success' => false, 'msg' => 'Invalid data']); return; }
+
+        $order = $this->Orders_model->getOrderById($order_id);
+        $billed_user = !empty($order['billed_to_user_id']) ? (int)$order['billed_to_user_id'] : (int)$order['user_id'];
+        $this->Orders_model->recordPayment($order_id, $billed_user, $amount, $mode, $reference, $notes);
+        echo json_encode(['success' => true]);
+        $this->saveHistory('Recorded payment of ' . $amount . ' for Order DB id ' . $order_id);
+    }
+
+    /**
+     * GET: show a single order detail page
+     */
+    public function detail($id = 0)
+    {
+        $this->login_check();
+        $id = (int)$id;
+        if (!$id) redirect('admin/orders');
+
+        $order = $this->Orders_model->getOrderById($id);
+        if (!$order) redirect('admin/orders');
+
+        // Mark as viewed
+        if ($order['viewed'] == 0) {
+            $this->db->where('id', $id)->update('orders', ['viewed' => 1]);
+        }
+
+        $head = ['title' => 'Order #' . $order['order_id'], 'description' => '', 'keywords' => ''];
+        $data['order']    = $order;
+        $data['products'] = @unserialize($order['products']) ?: [];
+        $data['payments'] = $this->Orders_model->getPayments($id);
+
+        // Billed-to user info
+        $billed_uid = !empty($order['billed_to_user_id']) ? (int)$order['billed_to_user_id'] : (int)$order['user_id'];
+        $data['billed_user'] = $this->db->select('id, name, phone, email, type, percent')
+                                        ->where('id', $billed_uid)->get('users_public')->row_array();
+
+        // Payment receipts submitted by user for this order
+        if ($this->db->table_exists('payments')) {
+            $this->db->select('payments.*, users_public.name as user_name, users_public.phone as user_phone');
+            $this->db->join('users_public', 'users_public.id = payments.user_id', 'left');
+            $this->db->where('payments.order_id', $id);
+            $this->db->where_in('payments.status', ['pending', 'verified', 'rejected']);
+            $this->db->order_by('payments.id', 'DESC');
+            $data['receipts'] = $this->db->get('payments')->result_array();
+        } else {
+            $data['receipts'] = [];
+        }
+
+        // GR Return requests for this order
+        if ($this->db->table_exists('gr_requests')) {
+            $data['gr_requests'] = $this->db->query(
+                "SELECT g.*, up_sub.name AS submitter_name, up_sub.phone AS submitter_phone, up_sub.company AS submitter_company
+                 FROM gr_requests g
+                 LEFT JOIN users_public up_sub ON up_sub.id = g.submitted_by
+                 WHERE g.order_id = " . $id . "
+                 ORDER BY g.id DESC"
+            )->result_array();
+        } else {
+            $data['gr_requests'] = [];
+        }
+
+        $this->load->view('_parts/header', $head);
+        $this->load->view('ecommerce/order_detail', $data);
+        $this->load->view('_parts/footer');
+    }
+
+    /**
+     * GET: order_id — returns payment history JSON
+     */
+    public function getOrderPayments($order_id)
+    {
+        $this->login_check();
+        header('Content-Type: application/json');
+        $payments = $this->Orders_model->getPayments((int)$order_id);
+        echo json_encode($payments);
     }
 
     private function sendVirtualProducts()

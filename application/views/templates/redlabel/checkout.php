@@ -24,7 +24,7 @@ $minDate   = date('Y-m-d', strtotime('+1 day'));
 .step-label { font-size:.75rem; margin-top:.35rem; color:#adb5bd; font-weight:500; }
 .step-item.active .step-label,
 .step-item.done   .step-label   { color:#111; }
-.step-line { flex:1; height:2px; background:#dee2e6; min-width:60px; max-width:120px; margin-bottom:1.4rem; transition:.3s; }
+.step-line { flex:1; height:2px; background:#dee2e6; min-width:40px; max-width:90px; margin-bottom:1.4rem; transition:.3s; }
 .step-line.done { background:#198754; }
 
 .checkout-panel { display:none; }
@@ -69,6 +69,12 @@ $minDate   = date('Y-m-d', strtotime('+1 day'));
 .addr-option:hover:not(.selected) { border-color:#adb5bd; }
 .addr-radio svg { color:#dee2e6; transition:.2s; }
 .addr-option.selected .addr-radio svg { color:#111; }
+
+/* receipt upload highlight */
+.receipt-upload-box { border:2px dashed #dee2e6; border-radius:10px; padding:1.5rem; text-align:center; transition:.2s; }
+.receipt-upload-box:hover { border-color:#111; }
+.receipt-upload-box input[type=file] { display:none; }
+.receipt-upload-box .upload-label { cursor:pointer; display:block; }
 </style>
 
 <div class="account_header bg-dark py-4">
@@ -76,11 +82,6 @@ $minDate   = date('Y-m-d', strtotime('+1 day'));
         <div class="row">
             <div class="col-12 text-center text-white">
                 <h1 class="h2_heading text-white">Checkout</h1>
-                <!-- <nav class="mt-2">
-                    <a class="text-light px-2" href="<?= base_url('home') ?>">Home</a> |
-                    <a class="text-light px-2" href="<?= base_url('shopping-cart') ?>">Cart</a> |
-                    <a class="text-light px-2" href="<?= base_url('checkout') ?>">Checkout</a>
-                </nav> -->
             </div>
         </div>
     </div>
@@ -113,6 +114,11 @@ $minDate   = date('Y-m-d', strtotime('+1 day'));
                 <div class="step-circle" id="sc-3">3</div>
                 <div class="step-label">Overview</div>
             </div>
+            <div class="step-line" id="sl-3"></div>
+            <div class="step-item" id="si-4">
+                <div class="step-circle" id="sc-4">4</div>
+                <div class="step-label">Confirmation</div>
+            </div>
         </div>
 
         <form method="post" enctype="multipart/form-data" id="checkoutForm">
@@ -123,7 +129,7 @@ $minDate   = date('Y-m-d', strtotime('+1 day'));
             <input type="hidden" name="amount_currency" value="<?= CURRENCY ?>">
             <?php foreach ($cartItems['array'] as $item): ?>
                 <input type="hidden" name="id[]"       value="<?= $item['product_id'] ?>">
-                <input type="hidden" name="quantity[]" value="<?= $item['num_added'] ?>">
+                <input type="hidden" name="quantity[]" value="<?= $item['set_quantity'] ?>">
             <?php endforeach; ?>
 
             <div class="row g-4">
@@ -278,6 +284,7 @@ $minDate   = date('Y-m-d', strtotime('+1 day'));
                         </div>
 
                         <!-- Hidden fields actually submitted -->
+                        <input type="hidden" name="addr_mode"  id="f_addr_mode" value="<?= ($hasSavedAddresses || (!empty($address) || !empty($full_name))) ? 'saved' : 'new' ?>">
                         <input type="hidden" name="first_name" id="f_name">
                         <input type="hidden" name="phone"      id="f_phone">
                         <input type="hidden" name="email"      id="f_email">
@@ -316,8 +323,8 @@ $minDate   = date('Y-m-d', strtotime('+1 day'));
                                 <div class="d-flex align-items-center gap-3">
                                     <input class="form-check-input m-0" type="radio" name="payment_type" id="pay_cod" value="cashOnDelivery" checked>
                                     <label for="pay_cod">
-                                        <div>Cash on Delivery</div>
-                                        <div class="text-muted" style="font-size:.8rem;font-weight:400;">Pay when you receive your order</div>
+                                        <div>Advance Payment</div>
+                                        <div class="text-muted" style="font-size:.8rem;font-weight:400;">Pay in advance before your order is dispatched</div>
                                     </label>
                                 </div>
                             </div>
@@ -333,18 +340,13 @@ $minDate   = date('Y-m-d', strtotime('+1 day'));
                                 </div>
                             </div>
                             <?php endif; ?>
-                        </div>
-
-                        <div class="co-card">
-                            <h5>Order Details</h5>
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label small">Dispatch Date <span class="text-danger">*</span></label>
-                                    <input type="date" class="form-control" name="dispatch_date" id="dispatch_date" min="<?= $minDate ?>" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label small">Payment Receipt (Attachment)</label>
-                                    <input type="file" class="form-control" name="bank_payment_receipt">
+                            <div class="payment-option">
+                                <div class="d-flex align-items-center gap-3">
+                                    <input class="form-check-input m-0" type="radio" name="payment_type" id="pay_credit" value="Credit">
+                                    <label for="pay_credit">
+                                        <div>Pay on Credit</div>
+                                        <div class="text-muted" style="font-size:.8rem;font-weight:400;">Order now and settle payment later against your account</div>
+                                    </label>
                                 </div>
                             </div>
                         </div>
@@ -381,7 +383,7 @@ $minDate   = date('Y-m-d', strtotime('+1 day'));
                                 <img src="<?= $img ?>" class="summary-item-img" alt="">
                                 <div class="flex-grow-1">
                                     <div class="summary-item-title"><?= htmlspecialchars($item['title']) ?></div>
-                                    <div class="summary-item-meta">Qty: <?= $item['num_added'] ?></div>
+                                    <div class="summary-item-meta"><?= $item['set_quantity'] ?> set<?= $item['set_quantity'] > 1 ? 's' : '' ?> × <?= $item['num_added'] ?> pcs</div>
                                 </div>
                                 <div class="fw-semibold" style="font-size:.9rem;"><?= $item['sum_price'] . CURRENCY ?></div>
                             </div>
@@ -416,18 +418,62 @@ $minDate   = date('Y-m-d', strtotime('+1 day'));
                             <p class="mb-0 text-muted" id="ov-address"></p>
                         </div>
 
-                        <div class="mb-3 form-check">
-                            <input type="checkbox" class="form-check-input" id="terms" required>
-                            <label class="form-check-label" for="terms">I agree to the <a href="#">Terms & Conditions</a> <span class="text-danger">*</span></label>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <button type="button" class="btn-back" onclick="goStep(2)">← Back</button>
+                            <button type="button" class="btn-next" onclick="goStep(4)">Confirm Payment →</button>
+                        </div>
+                    </div><!-- /step-3 -->
+
+                    <!-- ── STEP 4: PAYMENT CONFIRMATION ── -->
+                    <div class="checkout-panel" id="step-4">
+                        <div class="co-card">
+                            <h5>Payment Confirmation</h5>
+                            <p class="text-muted small mb-4">Please provide your expected dispatch date and upload a copy of your payment receipt to complete the order.</p>
+
+                            <div class="row g-3">
+                                <div id="dispatch-date-col" class="col-md-6">
+                                    <label class="form-label small">Expected Dispatch Date <span class="text-danger">*</span></label>
+                                    <input type="date" class="form-control" name="dispatch_date" id="dispatch_date" min="<?= $minDate ?>">
+                                    <div class="form-text text-muted">Select the date you expect goods to be dispatched.</div>
+                                </div>
+                                <div id="receipt-section" class="col-md-6" style="display:none;">
+                                    <label class="form-label small">Payment Receipt <span class="text-danger">*</span></label>
+                                    <div class="receipt-upload-box" id="receiptUploadBox">
+                                        <label class="upload-label" for="bank_payment_receipt_input">
+                                            <i class="bi bi-cloud-upload fs-3 text-muted d-block mb-2"></i>
+                                            <span class="fw-semibold" id="receiptFileName">Click to upload receipt</span><br>
+                                            <span class="text-muted small">JPG, PNG or PDF · max 5 MB</span>
+                                        </label>
+                                        <input type="file" id="bank_payment_receipt_input" name="bank_payment_receipt" accept=".jpg,.jpeg,.png,.pdf,.webp" onchange="onReceiptChange(this)">
+                                    </div>
+                                    <div id="receiptError" class="text-danger small mt-1" style="display:none;">Payment receipt is required.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="co-card">
+                            <h5>Order Summary</h5>
+                            <div class="overview-row">
+                                <span class="text-muted">Payment Method</span>
+                                <span id="conf-payment-method" class="fw-semibold">—</span>
+                            </div>
+                            <div class="overview-row">
+                                <span class="text-muted">Delivery To</span>
+                                <span id="conf-address" class="fw-semibold text-end" style="max-width:55%;">—</span>
+                            </div>
+                            <div class="overview-row total">
+                                <span>Total Payable</span>
+                                <span id="conf-total">Rs. <?= number_format($tax['total'], 2) ?></span>
+                            </div>
                         </div>
 
                         <div class="d-flex justify-content-between align-items-center">
-                            <button type="button" class="btn-back" onclick="goStep(2)">← Back</button>
+                            <button type="button" class="btn-back" onclick="goStep(3)">← Back</button>
                             <button type="button" class="btn-place" id="checkout-submit-btn" onclick="placeOrder(this)">
                                 Place Order
                             </button>
                         </div>
-                    </div><!-- /step-3 -->
+                    </div><!-- /step-4 -->
 
                 </div><!-- /col-lg-8 -->
 
@@ -446,7 +492,7 @@ $minDate   = date('Y-m-d', strtotime('+1 day'));
                                 <img src="<?= $img ?>" class="summary-item-img" alt="">
                                 <div class="flex-grow-1">
                                     <div class="summary-item-title"><?= htmlspecialchars($item['title']) ?></div>
-                                    <div class="summary-item-meta">Qty: <?= $item['num_added'] ?> × <?= $item['price'] . CURRENCY ?></div>
+                                    <div class="summary-item-meta"><?= $item['set_quantity'] ?> set<?= $item['set_quantity'] > 1 ? 's' : '' ?> × <?= $item['num_added'] ?> pcs × <?= $item['price'] . CURRENCY ?></div>
                                 </div>
                             </div>
                             <?php endforeach; ?>
@@ -456,6 +502,22 @@ $minDate   = date('Y-m-d', strtotime('+1 day'));
                                     <span class="text-muted">Order Value</span>
                                     <span>Rs. <?= number_format($tax['base'], 2) ?></span>
                                 </div>
+                                <?php
+                                $userType    = isset($user->type)    ? (int)$user->type    : 0;
+                                $userPercent = isset($user->percent) ? (float)$user->percent : 0;
+                                if (($userType === 2 || $userType === 3) && $userPercent > 0):
+                                    $marginSaving = $tax['base'] * $userPercent / 100;
+                                    $marginLabel  = $userType === 2 ? 'Distributor' : 'Wholesaler';
+                                ?>
+                                <div class="overview-row" style="color:#198754;">
+                                    <span><?= $marginLabel ?> Margin (<?= $userPercent ?>%)</span>
+                                    <span>− Rs. <?= number_format($marginSaving, 2) ?></span>
+                                </div>
+                                <div class="overview-row" style="font-weight:600;">
+                                    <span>Payable Amount</span>
+                                    <span>Rs. <?= number_format($tax['base'] - $marginSaving, 2) ?></span>
+                                </div>
+                                <?php endif; ?>
                                 <div class="overview-row" id="sb-discount-row" style="display:none!important;">
                                     <span class="text-muted">Discount</span>
                                     <span class="text-success">− Rs. <span id="sb-discount">0.00</span></span>
@@ -513,7 +575,7 @@ var CO = {
 // Select one of the saved address cards
 function selectSavedAddress(el) {
     CO.addrMode = 'saved';
-    // Deselect all saved cards + new option
+    document.getElementById('f_addr_mode').value = 'saved';
     document.querySelectorAll('.co-addr-saved').forEach(function (c) {
         c.classList.remove('selected');
         var dot = c.querySelector('.co-addr-dot');
@@ -521,13 +583,10 @@ function selectSavedAddress(el) {
     });
     document.getElementById('addrNew').classList.remove('selected');
     document.getElementById('addrDotNew').style.display = 'none';
-    // Select this card
     el.classList.add('selected');
     var dot = el.querySelector('.co-addr-dot');
     if (dot) dot.style.display = '';
-    // Update hidden manual form visibility
     document.getElementById('manualAddressForm').style.display = 'none';
-    // Update CO.saved from data attributes
     CO.saved.name    = el.dataset.name    || '';
     CO.saved.phone   = el.dataset.phone   || '';
     CO.saved.email   = el.dataset.email   || CO.saved.email;
@@ -536,7 +595,6 @@ function selectSavedAddress(el) {
     CO.saved.address = el.dataset.address || '';
 }
 
-// Populate hidden fields from saved address
 function fillHiddenFromSaved() {
     document.getElementById('f_name').value    = CO.saved.name;
     document.getElementById('f_phone').value   = CO.saved.phone;
@@ -549,7 +607,6 @@ function fillHiddenFromSaved() {
     document.getElementById('f_pincode').value = '';
 }
 
-// Populate hidden fields from manual form inputs
 function fillHiddenFromManual() {
     document.getElementById('f_name').value    = document.getElementById('f_name_manual').value;
     document.getElementById('f_phone').value   = document.getElementById('f_phone_manual').value;
@@ -562,41 +619,40 @@ function fillHiddenFromManual() {
 
 function selectAddress(mode) {
     CO.addrMode = mode;
+    document.getElementById('f_addr_mode').value = mode;
     var newCard    = document.getElementById('addrNew');
     var manualForm = document.getElementById('manualAddressForm');
     var dotNew     = document.getElementById('addrDotNew');
-
     if (mode === 'new') {
-        // Deselect all saved cards
         document.querySelectorAll('.co-addr-saved').forEach(function (c) {
             c.classList.remove('selected');
             var dot = c.querySelector('.co-addr-dot');
             if (dot) dot.style.display = 'none';
         });
-        newCard  && newCard.classList.add('selected');
-        dotNew   && (dotNew.style.display = '');
+        newCard    && newCard.classList.add('selected');
+        dotNew     && (dotNew.style.display = '');
         manualForm && (manualForm.style.display = '');
     }
 }
 
-// Pre-fill hidden fields on page load if a saved address is selected
 if (CO.addrMode === 'saved') fillHiddenFromSaved();
+
+var TOTAL_STEPS = 4;
 
 function goStep(n) {
     if (n > CO.currentStep && !validateStep(CO.currentStep)) return;
 
-    // Update panels
     document.querySelectorAll('.checkout-panel').forEach(function(p) { p.classList.remove('active'); });
     document.getElementById('step-' + n).classList.add('active');
 
-    // Update step indicators
-    for (var i = 1; i <= 3; i++) {
+    var checkSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M13.485 1.431a1.473 1.473 0 0 1 2.104 2.062l-7.84 9.801a1.473 1.473 0 0 1-2.12.04L.875 9.232a1.473 1.473 0 1 1 2.084-2.083l4.111 4.112 6.921-9.86a.486.486 0 0 1 .014-.02z"/></svg>';
+    for (var i = 1; i <= TOTAL_STEPS; i++) {
         var si = document.getElementById('si-' + i);
         si.classList.remove('active', 'done');
         var sc = document.getElementById('sc-' + i);
         if (i < n) {
             si.classList.add('done');
-            sc.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M13.485 1.431a1.473 1.473 0 0 1 2.104 2.062l-7.84 9.801a1.473 1.473 0 0 1-2.12.04L.875 9.232a1.473 1.473 0 1 1 2.084-2.083l4.111 4.112 6.921-9.86a.486.486 0 0 1 .014-.02z"/></svg>';
+            sc.innerHTML = checkSvg;
         } else if (i === n) {
             si.classList.add('active');
             sc.textContent = i;
@@ -604,15 +660,13 @@ function goStep(n) {
             sc.textContent = i;
         }
     }
-
-    // Step lines
-    for (var j = 1; j <= 2; j++) {
+    for (var j = 1; j < TOTAL_STEPS; j++) {
         var sl = document.getElementById('sl-' + j);
-        sl.classList.toggle('done', j < n);
+        if (sl) sl.classList.toggle('done', j < n);
     }
 
-    // Populate overview when going to step 3
     if (n === 3) populateOverview();
+    if (n === 4) populateConfirmation();
 
     CO.currentStep = n;
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -631,7 +685,6 @@ function validateStep(step) {
             if (!address) { alert('Please enter your address.');             return false; }
             fillHiddenFromManual();
         } else {
-            // Saved address — check it has at least a name and address
             if (!CO.saved.name)    { alert('The selected address is missing a name. Please edit it in My Account.'); return false; }
             if (!CO.saved.address) { alert('The selected address has no address text. Please edit it in My Account.'); return false; }
             fillHiddenFromSaved();
@@ -640,9 +693,8 @@ function validateStep(step) {
     if (step === 2) {
         var payChecked = document.querySelector('[name="payment_type"]:checked');
         if (!payChecked) { alert('Please select a payment method.'); return false; }
-        var dispatchDate = document.querySelector('[name="dispatch_date"]').value;
-        if (!dispatchDate) { alert('Please select a dispatch date.'); return false; }
     }
+
     return true;
 }
 
@@ -654,21 +706,28 @@ function populateOverview() {
     updateTotals();
 }
 
+function populateConfirmation() {
+    var payEl = document.querySelector('[name="payment_type"]:checked');
+    var payLabel = payEl ? payEl.parentElement.querySelector('label div:first-child').textContent.trim() : '—';
+    document.getElementById('conf-payment-method').textContent = payLabel;
+    document.getElementById('conf-address').textContent =
+        (document.querySelector('[name="first_name"]').value || '—') + ', ' +
+        (document.querySelector('[name="address"]').value || '');
+    updateTotals();
+    var confTotal = document.getElementById('conf-total');
+    if (confTotal) confTotal.textContent = document.getElementById('sb-total').textContent;
+}
+
 function updateTotals() {
     var after = CO.baseTotal - CO.discount;
     if (after < 0) after = 0;
-
     var fmt = 'Rs. ' + after.toFixed(2);
     document.getElementById('sb-total').textContent = fmt;
-
     var ovTotal = document.getElementById('ov-total');
     if (ovTotal) ovTotal.textContent = fmt;
-
-    document.getElementById('h_final_amount').value = after.toFixed(2);
+    document.getElementById('h_final_amount').value    = after.toFixed(2);
     document.getElementById('h_discount_amount').value = CO.discount.toFixed(2);
     document.getElementById('h_discount_code').value   = CO.discountCode;
-
-    // Show/hide discount rows
     var show = CO.discount > 0;
     ['sb-discount-row', 'ov-discount-row'].forEach(function(id) {
         var el = document.getElementById(id);
@@ -680,6 +739,21 @@ function updateTotals() {
     });
     if (document.getElementById('ov-code')) {
         document.getElementById('ov-code').textContent = CO.discountCode;
+    }
+}
+
+// Receipt file change handler
+function onReceiptChange(input) {
+    var label = document.getElementById('receiptFileName');
+    var box   = document.getElementById('receiptUploadBox');
+    var err   = document.getElementById('receiptError');
+    if (input.files && input.files[0]) {
+        label.textContent = input.files[0].name;
+        box.style.borderColor = '#198754';
+        err.style.display = 'none';
+    } else {
+        label.textContent = 'Click to upload receipt';
+        box.style.borderColor = '';
     }
 }
 
@@ -716,23 +790,56 @@ document.getElementById('applyCouponBtn').addEventListener('click', function () 
     });
 });
 
-// Place order
-function placeOrder(btn) {
-    if (!document.getElementById('terms').checked) {
-        alert('Please accept the Terms & Conditions.');
-        return;
-    }
-    btn.disabled = true;
-    btn.textContent = 'Placing Order…';
-    document.getElementById('checkoutForm').submit();
-}
-
 // Dispatch date validation
 document.getElementById('dispatch_date').addEventListener('change', function () {
     var sel = new Date(this.value), min = new Date();
     min.setDate(min.getDate() + 1); min.setHours(0,0,0,0);
     if (sel < min) { alert('Please select a future date.'); this.value = ''; }
 });
+
+// Show/hide receipt section and adjust dispatch-date column based on payment type
+function updateStep4UI() {
+    var payEl = document.querySelector('[name="payment_type"]:checked');
+    var payVal = payEl ? payEl.value : '';
+    var receiptSec  = document.getElementById('receipt-section');
+    var dispatchCol = document.getElementById('dispatch-date-col');
+    if (payVal === 'Bank') {
+        receiptSec.style.display  = '';
+        dispatchCol.className = 'col-md-6';
+    } else {
+        receiptSec.style.display  = 'none';
+        dispatchCol.className = 'col-12';
+    }
+}
+document.querySelectorAll('[name="payment_type"]').forEach(function(r) {
+    r.addEventListener('change', updateStep4UI);
+});
+// Run on page load so initial state is correct
+updateStep4UI();
+
+// Place order — validate step 4 fields before submit
+function placeOrder(btn) {
+    var payEl  = document.querySelector('[name="payment_type"]:checked');
+    var payVal = payEl ? payEl.value : '';
+
+    var dispatchDate = document.getElementById('dispatch_date').value;
+    if (!dispatchDate) {
+        alert('Please select an expected dispatch date.');
+        return;
+    }
+    if (payVal === 'Bank') {
+        var receiptInput = document.getElementById('bank_payment_receipt_input');
+        if (!receiptInput || !receiptInput.files || receiptInput.files.length === 0) {
+            document.getElementById('receiptError').style.display = 'block';
+            document.getElementById('receiptUploadBox').style.borderColor = '#dc3545';
+            receiptInput.parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+        }
+    }
+    btn.disabled = true;
+    btn.textContent = 'Placing Order…';
+    document.getElementById('checkoutForm').submit();
+}
 </script>
 
 <?php include("footer.php") ?>

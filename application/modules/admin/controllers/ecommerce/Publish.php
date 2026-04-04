@@ -18,7 +18,8 @@ class Publish extends ADMIN_Controller
             'Products_model',
             'Languages_model',
             'Brands_model',
-            'Categories_model'
+            'Categories_model',
+            'Product_attributes_model'
         ));
     }
 
@@ -45,7 +46,8 @@ class Publish extends ADMIN_Controller
             $sizes    = isset($_POST['variation_sizes'])   ? $_POST['variation_sizes']   : [];
             $swatches = isset($_POST['variation_swatch'])  ? $_POST['variation_swatch']  : [];
             $hexes    = isset($_POST['variation_hex'])     ? $_POST['variation_hex']     : [];
-            $this->Products_model->saveVariations($product_id, $colors, $sizes, $swatches, $hexes);
+            $var_imgs = isset($_POST['variation_images'])  ? $_POST['variation_images']  : [];
+            $this->Products_model->saveVariations($product_id, $colors, $sizes, $swatches, $hexes, $var_imgs);
             $this->session->set_flashdata('result_publish', 'Product is published!');
             if ($id == 0) {
                 $this->saveHistory('Success published product');
@@ -71,9 +73,14 @@ class Publish extends ADMIN_Controller
         $data['trans_load'] = $trans_load;
         $data['languages'] = $this->Languages_model->getLanguages();
         $data['shop_categories'] = $this->Categories_model->getShopCategories();
-        $data['brands'] = $this->Brands_model->getBrands();
+        $data['brands']            = $this->Brands_model->getBrands();
+        $data['attr_fabrics']      = $this->Product_attributes_model->getFabrics();
+        $data['attr_fab_cats']     = $this->Product_attributes_model->getFabricCategories();
+        $data['attr_fab_types']    = $this->Product_attributes_model->getFabricTypes();
         $data['otherImgs'] = $this->loadOthersImages();
         $data['variations'] = ($id > 0) ? $this->Products_model->getVariations($id) : [];
+        $data['children']   = ($id > 0) ? $this->Products_model->getChildren($id) : [];
+        $data['parent_id']  = ($id > 0 && isset($_POST['parent_id'])) ? (int)$_POST['parent_id'] : (($id > 0) ? (int)($this->db->select('parent_id')->where('id',$id)->get('products')->row_array()['parent_id'] ?? 0) : 0);
         $this->load->view('_parts/header', $head);
         $this->load->view('ecommerce/publish', $data);
         $this->load->view('_parts/footer');
@@ -94,6 +101,35 @@ class Publish extends ADMIN_Controller
     }
 
     /*
+     * called from ajax — uploads a single variation product image, returns JSON {success, filename, url}
+     */
+    public function upload_variation_image()
+    {
+        header('Content-Type: application/json');
+        $dir = './attachments/variation_images/';
+        if (!is_dir($dir)) {
+            mkdir($dir, 0777, true);
+        }
+        $this->load->library('upload');
+        $this->upload->initialize([
+            'upload_path'   => $dir,
+            'allowed_types' => 'gif|jpg|jpeg|png|webp',
+            'max_size'      => 10240,
+        ]);
+        if (!$this->upload->do_upload('varimage')) {
+            echo json_encode(['success' => false, 'error' => strip_tags($this->upload->display_errors())]);
+            exit;
+        }
+        $img = $this->upload->data();
+        echo json_encode([
+            'success'  => true,
+            'filename' => $img['file_name'],
+            'url'      => base_url('attachments/variation_images/' . $img['file_name']),
+        ]);
+        exit;
+    }
+
+    /*
      * called from ajax — uploads a single swatch image, returns JSON {success, filename, url}
      */
     public function upload_swatch()
@@ -106,8 +142,8 @@ class Publish extends ADMIN_Controller
         $this->load->library('upload');
         $this->upload->initialize([
             'upload_path'   => $dir,
-            'allowed_types' => $this->allowed_img_types,
-            'max_size'      => 2048,
+            'allowed_types' => 'gif|jpg|jpeg|png|webp',
+            'max_size'      => 4096,
         ]);
         if (!$this->upload->do_upload('swatch')) {
             echo json_encode(['success' => false, 'error' => strip_tags($this->upload->display_errors())]);
@@ -122,38 +158,131 @@ class Publish extends ADMIN_Controller
         exit;
     }
 
-    /*
-     * called from ajax
-     */
+    // ── Parent / Child AJAX endpoints ────────────────────────────────────────
 
+    /**
+     * POST: parent_id, child_id — link child to parent
+     */
+    public function linkChild()
+    {
+        header('Content-Type: application/json');
+        $parent_id = (int)$this->input->post('parent_id');
+        $child_id  = (int)$this->input->post('child_id');
+        if (!$parent_id || !$child_id || $parent_id === $child_id) {
+            echo json_encode(['success' => false, 'error' => 'Invalid IDs']);
+            exit;
+        }
+        $this->Products_model->setParentId($child_id, $parent_id);
+        $children = $this->Products_model->getChildren($parent_id);
+        echo json_encode(['success' => true, 'children' => $children]);
+        exit;
+    }
+
+    /**
+     * POST: parent_id, child_id — unlink child from parent
+     */
+    public function unlinkChild()
+    {
+        header('Content-Type: application/json');
+        $parent_id = (int)$this->input->post('parent_id');
+        $child_id  = (int)$this->input->post('child_id');
+        if (!$child_id) {
+            echo json_encode(['success' => false]);
+            exit;
+        }
+        $this->Products_model->setParentId($child_id, 0);
+        $children = $this->Products_model->getChildren($parent_id);
+        echo json_encode(['success' => true, 'children' => $children]);
+        exit;
+    }
+
+    /**
+     * GET: q, exclude — search products for linking
+     */
+    public function searchProducts()
+    {
+        header('Content-Type: application/json');
+        $q       = $this->input->get('q');
+        $exclude = (int)$this->input->get('exclude');
+        if (strlen(trim($q)) < 1) {
+            echo json_encode([]);
+            exit;
+        }
+        $results = $this->Products_model->searchForLinking($q, $exclude);
+        echo json_encode($results);
+        exit;
+    }
+
+    /*
+     * called from ajax (legacy modal - kept for compatibility)
+     */
     public function do_upload_others_images()
     {
-        if ($this->input->is_ajax_request()) {
-            $upath = '.' . DIRECTORY_SEPARATOR . 'attachments' . DIRECTORY_SEPARATOR . 'shop_images' . DIRECTORY_SEPARATOR . $_POST['folder'] . DIRECTORY_SEPARATOR;
-            if (!file_exists($upath)) {
-                mkdir($upath, 0777);
-            }
-
-            $this->load->library('upload');
-            
-            
-            $files = $_FILES;
-            $cpt = count($_FILES['others']['name']);
-            for ($i = 0; $i < $cpt; $i++) {
-                unset($_FILES);
-                $_FILES['others']['name'] = $files['others']['name'][$i];
-                $_FILES['others']['type'] = $files['others']['type'][$i];
-                $_FILES['others']['tmp_name'] = $files['others']['tmp_name'][$i];
-                $_FILES['others']['error'] = $files['others']['error'][$i];
-                $_FILES['others']['size'] = $files['others']['size'][$i];
-
-                $this->upload->initialize(array(
-                    'upload_path' => $upath,
-                    'allowed_types' => $this->allowed_img_types
-                ));
-                $this->upload->do_upload('others');
-            }
+        $upath = '.' . DIRECTORY_SEPARATOR . 'attachments' . DIRECTORY_SEPARATOR . 'shop_images' . DIRECTORY_SEPARATOR . $_POST['folder'] . DIRECTORY_SEPARATOR;
+        if (!file_exists($upath)) {
+            mkdir($upath, 0777);
         }
+
+        $this->load->library('upload');
+        $files = $_FILES;
+        $cpt = count($_FILES['others']['name']);
+        for ($i = 0; $i < $cpt; $i++) {
+            unset($_FILES);
+            $_FILES['others']['name']     = $files['others']['name'][$i];
+            $_FILES['others']['type']     = $files['others']['type'][$i];
+            $_FILES['others']['tmp_name'] = $files['others']['tmp_name'][$i];
+            $_FILES['others']['error']    = $files['others']['error'][$i];
+            $_FILES['others']['size']     = $files['others']['size'][$i];
+
+            $this->upload->initialize([
+                'upload_path'   => $upath,
+                'allowed_types' => $this->allowed_img_types,
+            ]);
+            $this->upload->do_upload('others');
+        }
+    }
+
+    /**
+     * Upload a single additional image — returns JSON {success, filename, url}
+     */
+    public function upload_extra_image()
+    {
+        header('Content-Type: application/json');
+        $folder    = trim($this->input->post('folder'));
+        $product_id = (int)$this->input->post('product_id');
+
+        // If folder is empty, generate one from product ID or timestamp (numeric only — folder column is int-compatible)
+        if (empty($folder)) {
+            $folder = $product_id > 0 ? (string)$product_id : (string)time();
+        }
+        // Prevent path traversal
+        $folder = preg_replace('/[^a-zA-Z0-9_\-]/', '', $folder);
+        // Always persist the folder to DB so the product page can find the images
+        if ($product_id > 0) {
+            $this->db->where('id', $product_id)->update('products', ['folder' => $folder]);
+        }
+        $upath  = './attachments/shop_images/' . $folder . '/';
+        if (!is_dir($upath)) {
+            mkdir($upath, 0777, true);
+        }
+        $this->load->library('upload');
+        $this->upload->initialize([
+            'upload_path'      => $upath,
+            'allowed_types'    => 'gif|jpg|jpeg|png|webp',
+            'max_size'         => 10240,
+        ]);
+        if (!$this->upload->do_upload('extra_image')) {
+            echo json_encode(['success' => false, 'error' => strip_tags($this->upload->display_errors())]);
+            exit;
+        }
+        $img = $this->upload->data();
+        echo json_encode([
+            'success'  => true,
+            'folder'   => $folder,
+            'filename' => $img['file_name'],
+            'url'      => base_url('attachments/shop_images/' . $folder . '/' . $img['file_name']),
+        ]);
+        exit;
     }
 
     public function loadOthersImages()

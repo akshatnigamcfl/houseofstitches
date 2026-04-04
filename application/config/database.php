@@ -86,6 +86,7 @@ if (file_exists($_envFile)) {
 $db['default'] = array(
 	'dsn'	     => '',
 	'hostname'   => getenv('DB_HOSTNAME') ?: 'localhost',
+	'port'       => (int)(getenv('DB_PORT') ?: 3306),
 	'username'   => getenv('DB_USERNAME') ?: 'root',
 	'password'   => getenv('DB_PASSWORD') ?: '',
 	'database'   => getenv('DB_DATABASE') ?: '',
@@ -97,6 +98,33 @@ $db['default'] = array(
 	'cachedir'   => '',
 	'char_set'   => 'utf8',
 	'dbcollat'   => 'utf8_general_ci',
+	'swap_pre'   => '',
+	'encrypt'    => FALSE,
+	'compress'   => FALSE,
+	'stricton'   => FALSE,
+	'failover'   => array(),
+	'save_queries' => TRUE
+);
+
+// Secondary database connection — Microsoft SQL Server via PDO/dblib (FreeTDS)
+$_db2_host = getenv('DB2_HOSTNAME') ?: '91.203.132.17';
+$_db2_port = getenv('DB2_PORT')     ?: '59087';
+$_db2_name = getenv('DB2_DATABASE') ?: 'SpangleDBnew';
+$db['db2'] = array(
+	'dsn'        => 'dblib:host=' . $_db2_host . ':' . $_db2_port . ';dbname=' . $_db2_name . ';charset=UTF-8',
+	'hostname'   => '',
+	'port'       => '',
+	'username'   => getenv('DB2_USERNAME') ?: '',
+	'password'   => getenv('DB2_PASSWORD') ?: '',
+	'database'   => '',
+	'dbdriver'   => 'pdo',
+	'dbprefix'   => '',
+	'pconnect'   => FALSE,
+	'db_debug'   => FALSE,
+	'cache_on'   => FALSE,
+	'cachedir'   => '',
+	'char_set'   => 'utf8',
+	'dbcollat'   => '',
 	'swap_pre'   => '',
 	'encrypt'    => FALSE,
 	'compress'   => FALSE,

@@ -89,8 +89,6 @@
 					<?php if (!empty($this->session->userdata('logged_user'))) { ?>
 						<!-- <li><a class="header-nav-link" href="<?php echo base_url('home/account'); ?>">Account</a></li> -->
 						<!-- <li><a class="header-nav-link" href="<?php echo base_url('shopping-cart'); ?>">Cart</a></li> -->
-					<?php } else { ?>
-						<li><a class="header-nav-link" href="<?php echo base_url('register'); ?>">Account</a></li>
 					<?php } ?>
 				</ul>
 				<ul class="list-unstyled d-flex justify-content-between align-items-center mb-0 gap-4 me-md-3 me-1">
@@ -123,18 +121,7 @@
 			<div class="offcanvas-body">
 				<div class="d-flex">
 					<form class="form-horizontal w-100" method="GET" action="<?php echo base_url('home/shop'); ?>" id="bigger-search">
-						<input type="hidden" name="category" value="">
-						<input type="hidden" name="in_stock" value="">
-						<input type="hidden" name="search_in_title" value="">
-						<input type="hidden" name="order_new" value="">
-						<input type="hidden" name="order_price" value="">
-						<input type="hidden" name="order_procurement" value="">
-						<input type="hidden" name="brand_id" value="">
-						<input type="hidden" name="search_in_desc" value="">
-						<input type="hidden" name="search_in_color" value="">
-						<input type="hidden" name="search_in_size" value="">
-						<input type="hidden" name="search_in_brand" value="">
-						<input class="form-control" type="search" placeholder="Search" aria-label="Search" id="search_in_title" name="search_in_title">
+						<input class="form-control" type="search" placeholder="Search by name or item code" aria-label="Search" id="search_in_title" name="search_in_title">
 					</form>
 					<button type="button" class="btn-close text-reset shadow-none" data-bs-dismiss="offcanvas" aria-label="Close"></button>
 				</div>
