@@ -310,7 +310,7 @@ class Sync_model extends CI_Model
             if (empty($group['barcodes'])) { $skipped++; continue; }
 
             // Set size = count of sizes that have stock > 0
-            $in_stock_barcodes = array_filter($group['barcodes'], fn($b) => $b['stock_qty'] > 0);
+            $in_stock_barcodes = array_filter($group['barcodes'], function($b) { return $b['stock_qty'] > 0; });
             $set_size = count($in_stock_barcodes);
             if ($set_size <= 0) { $skipped++; continue; }
             $title     = $group['itm_desc'] . ' ' . $group['color_name'];

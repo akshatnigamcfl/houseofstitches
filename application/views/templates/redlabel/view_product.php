@@ -254,7 +254,7 @@ if (empty($gallery) && $p_image) $gallery[] = $p_image;
         <?php
         // Set info from barcodes
         $set_barcodes      = isset($product_barcodes) ? $product_barcodes : [];
-        $available_sizes   = array_filter($set_barcodes, fn($b) => (int)$b['stock_qty'] > 0);
+        $available_sizes   = array_filter($set_barcodes, function($b) { return (int)$b['stock_qty'] > 0; });
         $set_count         = count($available_sizes);
         $total_sizes       = count($set_barcodes);
         ?>
