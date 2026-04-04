@@ -71,6 +71,9 @@ class Sync_model extends CI_Model
             if (!$this->db->field_exists('scn_pk_no_location', 'product_barcodes')) {
                 $this->db->query("ALTER TABLE `product_barcodes` ADD COLUMN `scn_pk_no_location` BIGINT NULL DEFAULT NULL");
             }
+            if (!$this->db->field_exists('company', 'product_barcodes')) {
+                $this->db->query("ALTER TABLE `product_barcodes` ADD COLUMN `company` VARCHAR(10) NULL DEFAULT NULL");
+            }
         }
     }
 
@@ -186,6 +189,7 @@ class Sync_model extends CI_Model
                 s.Scn_Size,
                 s.Scn_CoNo,
                 s.Scn_PkNoLocation,
+                s.Scn_Cocode     AS company,
                 c.Co_Desc        AS color_name,
                 sk.Sss_StockQty  AS stock_qty,
                 sk.Sss_SzNo
@@ -225,6 +229,7 @@ class Sync_model extends CI_Model
                 'size'               => trim($row['Scn_Size']),
                 'scn_pk_no_location' => (int)$row['Scn_PkNoLocation'],
                 'stock_qty'          => (int)$row['stock_qty'],
+                'company'            => trim($row['company']),
             ];
         }
 
@@ -250,11 +255,12 @@ class Sync_model extends CI_Model
         // Load existing barcodes: barcode => {product_id, stock_qty}
         $barcode_map = [];
         if ($this->db->table_exists('product_barcodes')) {
-            $pb_rows = $this->db->select('barcode, product_id, stock_qty')->get('product_barcodes')->result_array();
+            $pb_rows = $this->db->select('barcode, product_id, stock_qty, company')->get('product_barcodes')->result_array();
             foreach ($pb_rows as $r) {
                 $barcode_map[$r['barcode']] = [
                     'product_id' => (int)$r['product_id'],
                     'stock_qty'  => (int)$r['stock_qty'],
+                    'company'    => $r['company'] ?? '',
                 ];
             }
         }
@@ -339,8 +345,9 @@ class Sync_model extends CI_Model
 
                 foreach ($group['barcodes'] as $bc) {
                     if (isset($barcode_map[$bc['barcode']])) {
-                        if ($barcode_map[$bc['barcode']]['stock_qty'] !== $bc['stock_qty']) {
-                            $barcode_stock_updates[$bc['barcode']] = $bc['stock_qty'];
+                        if ($barcode_map[$bc['barcode']]['stock_qty'] !== $bc['stock_qty']
+                            || ($barcode_map[$bc['barcode']]['company'] ?? '') !== $bc['company']) {
+                            $barcode_stock_updates[$bc['barcode']] = ['stock_qty' => $bc['stock_qty'], 'company' => $bc['company']];
                         }
                     } else {
                         $this->db->insert('product_barcodes', [
@@ -349,6 +356,7 @@ class Sync_model extends CI_Model
                             'size'               => $bc['size'],
                             'stock_qty'          => $bc['stock_qty'],
                             'scn_pk_no_location' => $bc['scn_pk_no_location'],
+                            'company'            => $bc['company'],
                         ]);
                     }
                 }
@@ -397,6 +405,7 @@ class Sync_model extends CI_Model
                         'size'               => $bc['size'],
                         'stock_qty'          => $bc['stock_qty'],
                         'scn_pk_no_location' => $bc['scn_pk_no_location'],
+                        'company'            => $bc['company'],
                     ]);
                 }
 
@@ -417,9 +426,9 @@ class Sync_model extends CI_Model
         }
 
         // ── Step 6: Update individual barcode stocks ──────────────────────────
-        foreach ($barcode_stock_updates as $barcode => $new_qty) {
+        foreach ($barcode_stock_updates as $barcode => $data) {
             $this->db->where('barcode', $barcode)
-                     ->update('product_barcodes', ['stock_qty' => $new_qty]);
+                     ->update('product_barcodes', ['stock_qty' => $data['stock_qty'], 'company' => $data['company']]);
         }
 
         $this->_setLastSyncTime();
