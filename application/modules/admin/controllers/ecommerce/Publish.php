@@ -88,16 +88,33 @@ class Publish extends ADMIN_Controller
     }
 
     private function uploadImage()
-    {     
-        $config['upload_path'] = './attachments/shop_images/';
+    {
+        // Determine the folder — use existing one or generate from timestamp
+        $folder = isset($_POST['folder']) && $_POST['folder'] !== ''
+            ? preg_replace('/[^a-zA-Z0-9_\-]/', '', $_POST['folder'])
+            : (string)time();
+
+        // Propagate folder so setProduct() saves it too
+        $_POST['folder'] = $folder;
+
+        $upath = './attachments/shop_images/' . $folder . '/';
+        if (!is_dir($upath)) {
+            mkdir($upath, 0777, true);
+        }
+
+        $config['upload_path']   = $upath;
         $config['allowed_types'] = $this->allowed_img_types;
         $this->load->library('upload', $config);
         $this->upload->initialize($config);
+
         if (!$this->upload->do_upload('userfile')) {
-            log_message('error', 'Image Upload Error: ' . $this->upload->display_errors());
+            // No new cover image uploaded — keep the existing one
+            return isset($_POST['old_image']) ? $_POST['old_image'] : '';
         }
+
         $img = $this->upload->data();
-        return $img['file_name'];
+        // Return path relative to shop_images/ so all rendering still works
+        return $folder . '/' . $img['file_name'];
     }
 
     /*
